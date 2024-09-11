@@ -12,7 +12,8 @@ typedef enum
     MLAYER_L5EXC,
     MLAYER_L5INH,
     MLAYER_L6EXC,
-    MLAYER_L6INH
+    MLAYER_L6INH,
+    THALAMIC
 } MicrocircuitLayer;
 
 typedef struct LIFSynapse
@@ -42,6 +43,7 @@ typedef struct LIFNetwork
     LIFNeuron* l5_inh;
     LIFNeuron* l6_exc;
     LIFNeuron* l6_inh;
+    LIFSynapse* thalamic_connections;
     LIFSynapse* synapses;
 } LIFNetwork;
 

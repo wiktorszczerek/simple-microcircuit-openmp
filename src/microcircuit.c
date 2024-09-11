@@ -135,7 +135,7 @@ void generate_synapse(LIFNetwork* network, MicrocircuitLayer pre_layer, Microcir
   network->synapses->post_index = post_index;
 }
 
-float generate_probability()
+float generate_uniform_probability()
 {
   return (float)rand()/RAND_MAX;
 }
@@ -147,19 +147,24 @@ void initialize_synapses(LIFNetwork* network)
 
 void create_synapses(LIFNetwork* network, MicrocircuitLayer pre_layer)
 {
+  // int counter = 0;
+  //TODO: those loops can be optimized (indexing)
   for(int pre_neuron=0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
   {
     for(int post_layer=0; post_layer < 8; ++post_layer)
     {
       for(int post_neuron=0; post_neuron < pop_sizes[post_layer]; ++post_neuron)
       {
-        if(generate_probability() <= synaptic_probability[pre_layer][post_layer])
+        if(generate_uniform_probability() <= synaptic_probability[pre_layer][post_layer])
         {
+          // if(pre_layer == MLAYER_L23INH && post_layer == MLAYER_L5EXC)
+          //   counter++;
           generate_synapse(network, pre_layer, post_layer, pre_neuron, post_neuron);
         }
       }
     }
   }
+  // printf("Counter L23INH - L5EXC = %d\n", counter);
 
   // for(int i=0; i<8; ++i)
   // {
