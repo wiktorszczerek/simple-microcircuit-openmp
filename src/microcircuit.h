@@ -3,7 +3,7 @@
 
 #include <inttypes.h>
 
-typedef enum 
+typedef enum
 {
     MLAYER_L23EXC,
     MLAYER_L23INH,
@@ -19,10 +19,9 @@ typedef enum
 typedef struct LIFSynapse
 {
     int pre_layer;
-    int post_layer;
+    // int post_layer;
     int pre_index;
-    int post_index;
-
+    // int post_index;
 } LIFSynapse;
 
 typedef struct LIFNeuron
@@ -30,25 +29,24 @@ typedef struct LIFNeuron
     float membrane;
     float synaptic_amp;
     float delay;
-
+    float refractory;
+    uint8_t spike;
+    LIFSynapse *synapses; // presynapses
+    int synapse_count;
+    float presynaptic_current;
 } LIFNeuron;
 
 typedef struct LIFNetwork
 {
-    LIFNeuron* l23_exc;
-    LIFNeuron* l23_inh;
-    LIFNeuron* l4_exc;
-    LIFNeuron* l4_inh;
-    LIFNeuron* l5_exc;
-    LIFNeuron* l5_inh;
-    LIFNeuron* l6_exc;
-    LIFNeuron* l6_inh;
-    LIFSynapse* thalamic_connections;
-    LIFSynapse* synapses;
+    LIFNeuron **layers;
+    // LIFSynapse *synapses;
+    // int synapse_count;
 } LIFNetwork;
 
-void initialize_network(LIFNetwork* network);
-void deinitialize_network(LIFNetwork* network);
+void initialize_network(LIFNetwork *network);
+void deinitialize_network(LIFNetwork *network);
 
+void update_network(LIFNetwork *network);
+void save_spikes(LIFNetwork *network, int step);
 
 #endif
