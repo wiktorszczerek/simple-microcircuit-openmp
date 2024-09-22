@@ -30,7 +30,7 @@ typedef struct LIFNeuron
     float synaptic_amp;
     float delay;
     float refractory;
-    uint8_t spike;
+    // uint8_t spike;
     LIFSynapse *synapses; // presynapses
     int synapse_count;
     float presynaptic_current;
@@ -39,9 +39,12 @@ typedef struct LIFNeuron
 typedef struct LIFNetwork
 {
     LIFNeuron **layers;
+    uint8_t* activity;
     // LIFSynapse *synapses;
     // int synapse_count;
 } LIFNetwork;
+
+int synaptic_number_check();
 
 void initialize_network(LIFNetwork *network);
 void deinitialize_network(LIFNetwork *network);
