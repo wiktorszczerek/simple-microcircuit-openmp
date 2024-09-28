@@ -4,10 +4,17 @@
 */
 // #include <math.h>
 
-static const int SIMULATION_TIME = 1; // s
-static const float TIMESTEP = 0.0001; // s
+#define DEBUG
+// #define MULTIPROCESSING
 
+static const float SIMULATION_TIME = 0.01; // s
+static const float TIMESTEP = 0.0001;      // s
+
+#ifdef DEBUG
+static const int SIMULATION_STEPS = 2;
+#else
 static const int SIMULATION_STEPS = (int)((float)SIMULATION_TIME / TIMESTEP);
+#endif
 
 static const float CAPACITANCE = 0.00000025; // pF
 static const float TAU_M = 10;

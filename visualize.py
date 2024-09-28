@@ -9,31 +9,6 @@ numpy_array_file = Path('./spikes.npy')
 step_num = 0
 step = []
 
-
-# with open("./spikes.txt", "r") as file:
-#     for line in file:
-#         if 'step' in line:
-#             print("Step "+str(step_num), end='\r')
-#             if step:
-#                 step = step * step_num
-#                 # plt.eventplot(step, colors='black', lineoffsets=1, linelengths=1)
-#             step = []
-#             step_num = step_num + 1
-#         elif 'layer' in line:
-#             pass
-#         else:
-#             spikes = [s.strip('\n') for s in line.split(',')]
-#             spikes = [s for s in spikes if s]
-#             spikes = [int(i) for i in spikes]
-#             step.extend(spikes)
-# plt.show()
-
-
-
-# exit(0)
-
-
-
 steps = {}
 
 if not numpy_array_file.exists():
@@ -60,8 +35,6 @@ if not numpy_array_file.exists():
     print("Converting spikes...")
 
     simulation_spikes = []
-    # step_spikes = []
-    # spike_times = []
 
     for step in steps.values():
         step_spikes = []

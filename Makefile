@@ -1,8 +1,9 @@
 CC = gcc
-CFLAGS = -Wall -fopenmp
+CFLAGS = -Wall -fopenmp -O1 -g
 
 TARGET = app
 OUTPUT_FILE = spikes.txt
+VISUALIZATION_FILE = spikes.npy
 
 OBJ_DIR = ./obj
 SRC_DIR = ./src
@@ -28,4 +29,4 @@ run:
 .PHONY: clean
 
 clean:
-	rm -rf $(OBJ_DIR)/* $(TARGET) $(OUTPUT_FILE) 
+	rm -rf $(OBJ_DIR)/* $(TARGET) $(OUTPUT_FILE) $(VISUALIZATION_FILE)

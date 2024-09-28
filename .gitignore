@@ -3,3 +3,4 @@ obj/
 spikes.txt
 spikes.npy
 app
+callgrind*

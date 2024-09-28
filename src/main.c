@@ -5,8 +5,6 @@
 #include "microcircuit.h"
 #include "constants.h"
 
-// #define DEBUG
-
 double gettime(void)
 {
     struct timeval tv;

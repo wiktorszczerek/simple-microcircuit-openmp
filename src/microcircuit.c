@@ -222,7 +222,9 @@ void initialize_network(LIFNetwork *network)
     }
     printf("DONE\n");
     printf("Creating neurons...");
+#ifdef MULTIPROCESSING
 #pragma omp parallel for private(pre_layer, pre_neuron)
+#endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
@@ -274,7 +276,9 @@ void update_network(LIFNetwork *network)
     int pre_neuron = -1;
     int post_neuron = -1;
     int pre_layer, post_layer, synapse;
+#ifdef MULTIPROCESSING
 #pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse)
+#endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
@@ -294,7 +298,9 @@ void update_network(LIFNetwork *network)
     /*
         Actually sum the PSPs and apply dynamics.
     */
+#ifdef MULTIPROCESSING
 #pragma omp parallel for private(pre_layer, pre_neuron)
+#endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
@@ -306,7 +312,9 @@ void update_network(LIFNetwork *network)
     /*
         Update activity array
     */
+#ifdef MULTIPROCESSING
 #pragma omp parallel for private(pre_layer, pre_neuron)
+#endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
@@ -323,6 +331,9 @@ void save_network(LIFNetwork *network)
 {
 }
 
+/**
+ * Saving the absolute indexes [0...77169] of the spiked neuron in the current timestep
+ */
 void save_spikes(LIFNetwork *network, int step)
 {
     FILE *f;
@@ -330,12 +341,12 @@ void save_spikes(LIFNetwork *network, int step)
     fprintf(f, "step:%d\n", step);
     for (int i = 0; i < LAYER_NUMBER; ++i)
     {
-        fprintf(f, "layer:%d\n", i);
         for (int j = 0; j < pop_sizes[i]; ++j)
         {
-            fprintf(f, "%d,", (network->layers[i] + j)->spike);
+            if (network->layers[i][j].spike == 1)
+                fprintf(f, "%d,", get_neuron_index(i, j));
         }
-        fprintf(f, "\n");
     }
+    fprintf(f, "\n");
     fclose(f);
 }
