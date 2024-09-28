@@ -7,7 +7,7 @@
 static const int SIMULATION_TIME = 1; // s
 static const float TIMESTEP = 0.0001; // s
 
-static const int SIMULATION_STEPS = 250; //(int)((float)SIMULATION_TIME / TIMESTEP);
+static const int SIMULATION_STEPS = (int)((float)SIMULATION_TIME / TIMESTEP);
 
 static const float CAPACITANCE = 0.00000025; // pF
 static const float TAU_M = 10;

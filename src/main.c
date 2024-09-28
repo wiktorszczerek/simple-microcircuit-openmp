@@ -1,10 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include "microcircuit.h"
 #include "constants.h"
 
 // #define DEBUG
+
+double gettime(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + 1e-6 * tv.tv_usec;
+}
 
 int process_input_args(int argc, char **argv)
 {
@@ -38,6 +46,7 @@ int main(int argc, char **argv)
     }
 
     LIFNetwork network;
+    double dtime;
 
     if (err == 1)
     {
@@ -50,6 +59,7 @@ int main(int argc, char **argv)
         initialize_network(&network);
         printf("Initialization done.\n\n");
         fflush(stdout);
+        dtime = gettime();
         for (int i = 0; i < SIMULATION_STEPS; ++i)
         {
             printf("Simulating step %d of %d...\r", i + 1, SIMULATION_STEPS);
@@ -57,6 +67,8 @@ int main(int argc, char **argv)
             update_network(&network);
             save_spikes(&network, i);
         }
+        dtime = gettime() - dtime;
+        printf("Elapsed time: %9.5f seconds\n", dtime);
         deinitialize_network(&network);
     }
     return 0;
