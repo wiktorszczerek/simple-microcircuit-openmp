@@ -59,7 +59,7 @@ int main(int argc, char **argv)
         dtime = gettime();
         for (int i = 0; i < SIMULATION_STEPS; ++i)
         {
-            printf("Simulating step %d of %d...\r", i + 1, SIMULATION_STEPS);
+            printf("Simulating step %d of %d...\r", i + 1, SIMULATION_STEPS); // negligible overhead
             fflush(stdout);
             update_network(&network);
             save_spikes(&network, i);

@@ -7,8 +7,8 @@
 // #define DEBUG
 #define MULTIPROCESSING
 
-static const float SIMULATION_TIME = 0.01; // s
-static const float TIMESTEP = 0.0001;      // s
+static const float SIMULATION_TIME = 1; // s
+static const float TIMESTEP = 0.0001;   // s
 
 #ifdef DEBUG
 static const int SIMULATION_STEPS = 2;

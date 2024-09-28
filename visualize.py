@@ -1,77 +1,36 @@
 from matplotlib import pyplot as plt
-import numpy as np
-from tqdm import tqdm
-from pathlib import Path
-
-numpy_array_file = Path('./spikes.npy')
-
+from itertools import zip_longest
 
 step_num = 0
 step = []
+steps = []
 
-steps = {}
+print("Loading spikes from spikes.txt...")
+with open("./spikes.txt", "r") as file:
+    for line in file:
+        if 'step' in line:
+            if step:
+                steps.append(step)
+            step_num = step_num + 1
+        else:
+            step = [s.strip('\n') for s in line.split(',')]
+            step = [s for s in step if s]
+            step = [int(i) for i in step]
 
-if not numpy_array_file.exists():
-    print("File spikes.npy not found. Reading spikes from spikes.txt...")
+del step
+print("Data loaded.")
+print("Converting to eventplot format...")
+steps_actual = [[] for _ in range(77169)]
 
-    with open("./spikes.txt", "r") as file:
-        layers = {}
-        for line in file:
-            if 'step' in line:
-                if layers:
-                    steps[step_number] = layers
-                step_number = line.split(':')[1].strip()
-                continue
-            elif 'layer' in line:
-                layer_number = line.split(':')[1].strip()
-                continue
-            else:
-                spikes = [s.strip('\n') for s in line.split(',')]
-                spikes = [s for s in spikes if s]
-                spikes = [int(i) for i in spikes]
-                layers[layer_number] = spikes
-        steps[step_number] = layers
+for s_index, s_value  in enumerate(steps):
+    for neuron in s_value:
+        steps_actual[neuron].append(s_index)
 
-    print("Converting spikes...")
+del steps
+# steps = list(map(list, zip_longest(*steps, fillvalue=None)))
 
-    simulation_spikes = []
-
-    for step in steps.values():
-        step_spikes = []
-        for layer in step.values():
-            step_spikes = step_spikes + layer
-        simulation_spikes.append(step_spikes)
-
-    del steps, step_spikes, spikes
-
-    simulation_spikes = np.array(simulation_spikes)
-    for i in range(simulation_spikes.shape[0]):
-        simulation_spikes[i] = simulation_spikes[i] * (i+1)
-    simulation_spikes = simulation_spikes.transpose()
-    
-    print("Data loaded. Saving to spikes.npy...")
-    np.save(numpy_array_file, simulation_spikes)
-    print("Data saved.")
-else:
-    print("spikes.npy found. Loading data...")
-    simulation_spikes = np.load(numpy_array_file)
-    print("Data loaded.")
-
-
-
-print("Size of the simulation data: "+str(simulation_spikes.shape))
-
-sim_spikes = []
-holder = []
- 
-print("Converting to eventplot...") # we could do that before but i'd rather save arrays of 0 and 1 rather than empty arrays
-
-for i in tqdm(range(simulation_spikes.shape[0])):
-    holder = [j for j in simulation_spikes[i] if j != 0]
-    sim_spikes.append(holder)
 
 print("Plotting...")
-
-plt.eventplot(sim_spikes[100:200], colors='black', lineoffsets=1, linelengths=1)
+plt.eventplot(steps_actual[:2000], colors='black', lineoffsets=1, linelengths=0.3, linewidths=0.3)
 plt.show()
 

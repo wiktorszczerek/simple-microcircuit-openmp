@@ -112,13 +112,13 @@ uint32_t synaptic_number_check()
     return maximum;
 }
 
-double get_linux_random()
+uint32_t get_linux_random()
 {
     FILE *file = fopen("/dev/urandom", "r");
     uint32_t i;
     fread(&i, sizeof(i), 1, file);
     fclose(file);
-    return (double)(i / ((double)UINT32_MAX));
+    return i;
 }
 
 uint32_t get_neuron_index(MicrocircuitLayer layer, uint32_t neuron_index)
@@ -144,7 +144,7 @@ void save_spikes(LIFNetwork *network, uint32_t step)
     {
         for (uint32_t j = 0; j < pop_sizes[i]; ++j)
         {
-            if (network->layers[i][j].spike == 1)
+            if (network->layers[i][j].spike)
                 fprintf(f, "%d,", network->layers[i][j].absoulute_index);
         }
     }
@@ -203,6 +203,7 @@ void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
 void create_synapse_pairs(LIFConnection ***synapses)
 {
     printf("\n");
+    // this could be parallelized but there's no point - it only runs once
     for (uint8_t pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (uint8_t post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
@@ -230,8 +231,9 @@ void create_synapse_pairs(LIFConnection ***synapses)
 
 void initialize_network(LIFNetwork *network)
 {
+    srand(get_linux_random());
+
     printf("Reserving space for network...");
-    network->activity = (uint8_t *)calloc(NEURON_NUMBER, sizeof(uint8_t));
 
     network->layers = (LIFNeuron **)malloc(LAYER_NUMBER * sizeof(LIFNeuron *));
     network->synapses = (LIFConnection ***)malloc(LAYER_NUMBER * sizeof(LIFConnection **));
@@ -256,7 +258,7 @@ void initialize_network(LIFNetwork *network)
     printf("DONE\n");
     printf("Creating neurons...");
 #ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron)
+#pragma omp parallel for private(pre_layer, pre_neuron) shared(network)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
@@ -286,7 +288,6 @@ void deinitialize_network(LIFNetwork *network)
 
     free(network->synapses);
     free(network->layers);
-    free(network->activity);
     printf("DONE\n");
 }
 
@@ -299,8 +300,9 @@ void update_network(LIFNetwork *network)
     uint32_t post_neuron = -1;
     uint32_t synapse;
     uint8_t pre_layer, post_layer;
+
 #ifdef MULTIPROCESSING
-#pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse)
+#pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse) shared(network)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
@@ -310,7 +312,7 @@ void update_network(LIFNetwork *network)
             {
                 pre_neuron = network->synapses[pre_layer][post_layer][synapse].pre_index;
                 post_neuron = network->synapses[pre_layer][post_layer][synapse].post_index;
-                if (network->activity[network->layers[pre_layer][pre_neuron].absoulute_index])
+                if (network->layers[pre_layer][pre_neuron].spike)
                 {
                     network->layers[post_layer][post_neuron].presynaptic_current += network->layers[pre_layer][pre_neuron].synaptic_amp;
                 }
@@ -323,27 +325,13 @@ void update_network(LIFNetwork *network)
         Actually sum the PSPs and apply dynamics.
     */
 #ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron)
+#pragma omp parallel for private(pre_layer, pre_neuron) shared(network)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
         {
             update_neuron(&(network->layers[pre_layer][pre_neuron]), pre_layer);
-        }
-    }
-
-    /*
-        Update activity array
-    */
-#ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron)
-#endif
-    for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
-    {
-        for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
-        {
-            network->activity[network->layers[pre_layer][pre_neuron].absoulute_index] = network->layers[pre_layer][pre_neuron].spike;
         }
     }
 }

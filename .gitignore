@@ -4,3 +4,4 @@ spikes.txt
 spikes.npy
 app
 callgrind*
+.dat

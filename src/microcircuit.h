@@ -37,7 +37,6 @@ typedef struct LIFNetwork
 {
     LIFConnection ***synapses; // 3D? -> 8 x 8 array of arrays
     LIFNeuron **layers;        // 2D -> 8 layers by howevery many neurons
-    uint8_t *activity;         // 1D
 } LIFNetwork;
 
 uint32_t synaptic_number_check();
