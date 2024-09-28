@@ -4,8 +4,8 @@
 */
 // #include <math.h>
 
-#define DEBUG
-// #define MULTIPROCESSING
+// #define DEBUG
+#define MULTIPROCESSING
 
 static const float SIMULATION_TIME = 0.01; // s
 static const float TIMESTEP = 0.0001;      // s

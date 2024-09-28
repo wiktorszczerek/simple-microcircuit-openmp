@@ -5,9 +5,9 @@
 #include <math.h>
 #include <omp.h>
 
-/*
+/**************************
     Common functions
-*/
+***************************/
 
 // int synapse_number = 0;
 
@@ -55,7 +55,7 @@ float generate_initial_potential(MicrocircuitLayer layer)
     return (float)randn(u_init[layer][0], u_init[layer][1]);
 }
 
-int get_pseudorandom_int(int start, int stop)
+uint32_t get_pseudorandom_int(uint32_t start, uint32_t stop)
 {
     return rand() % (stop + 1 - start) + start;
 }
@@ -70,10 +70,10 @@ float generate_poisson_probability(float lambda, float k)
     return (pow(lambda, k) * exp(-lambda)) / tgamma(k + 1);
 }
 
-int generate_thalamic_spikes(MicrocircuitLayer layer)
+uint32_t generate_thalamic_spikes(MicrocircuitLayer layer)
 {
-    int spikes = 0;
-    for (int i = 0; i < thalamic_sizes[layer]; ++i)
+    uint32_t spikes = 0;
+    for (uint32_t i = 0; i < thalamic_sizes[layer]; ++i)
     {
         if (generate_uniform_probability() < F_TH * TIMESTEP)
             spikes++;
@@ -81,26 +81,26 @@ int generate_thalamic_spikes(MicrocircuitLayer layer)
     return spikes;
 }
 
-int max_synaptic_number_per_layer(MicrocircuitLayer layer)
+uint32_t max_synaptic_number_per_layer(MicrocircuitLayer layer)
 {
-    int num = 0;
-    for (int i = 0; i < LAYER_NUMBER; ++i)
+    uint32_t num = 0;
+    for (uint32_t i = 0; i < LAYER_NUMBER; ++i)
     {
         num += max_synapses_per_layer[layer][i];
     }
     return num;
 }
 
-int synaptic_number_check()
+uint32_t synaptic_number_check()
 {
     printf("==============================================================================================================\n");
     printf("Probability array check. Checking for postsynaptic connections per neuron\n");
-    int synapse_number = 0, maximum = 0, synapses_per_population = 0;
-    for (int i = 0; i < LAYER_NUMBER; ++i)
+    uint32_t synapse_number = 0, maximum = 0, synapses_per_population = 0;
+    for (uint32_t i = 0; i < LAYER_NUMBER; ++i)
     {
-        for (int j = 0; j < LAYER_NUMBER; ++j)
+        for (uint32_t j = 0; j < LAYER_NUMBER; ++j)
         {
-            synapses_per_population = (int)ceil((double)synaptic_probability[i][j] * pop_sizes[j] * pop_sizes[i]);
+            synapses_per_population = (uint32_t)ceil((double)synaptic_probability[i][j] * pop_sizes[j] * pop_sizes[i]);
             if (synapses_per_population > maximum)
                 maximum = synapses_per_population;
             synapse_number += synapses_per_population;
@@ -121,17 +121,49 @@ double get_linux_random()
     return (double)(i / ((double)UINT32_MAX));
 }
 
-/*
-    Neuron
-*/
+uint32_t get_neuron_index(MicrocircuitLayer layer, uint32_t neuron_index)
+{
+    uint32_t ret = 0;
+    for (uint32_t i = 0; i < layer; ++i)
+    {
+        ret += pop_sizes[i];
+    }
+    ret += neuron_index;
+    return ret;
+}
 
-void create_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
+/**
+ * Saving the absolute indexes [0...77169] of the spiked neuron in the current timestep
+ */
+void save_spikes(LIFNetwork *network, uint32_t step)
+{
+    FILE *f;
+    f = fopen("spikes.txt", "a+");
+    fprintf(f, "step:%d\n", step);
+    for (uint8_t i = 0; i < LAYER_NUMBER; ++i)
+    {
+        for (uint32_t j = 0; j < pop_sizes[i]; ++j)
+        {
+            if (network->layers[i][j].spike == 1)
+                fprintf(f, "%d,", network->layers[i][j].absoulute_index);
+        }
+    }
+    fprintf(f, "\n");
+    fclose(f);
+}
+
+/**************************
+        Neuron
+***************************/
+
+void create_neuron(LIFNeuron *neuron, MicrocircuitLayer layer, uint32_t neuron_index)
 {
     neuron->membrane = generate_initial_potential(layer);
     neuron->synaptic_amp = generate_synaptic_amp(layer);
     neuron->delay = generate_delay(layer);
     neuron->spike = 0;
     neuron->refractory = 0;
+    neuron->absoulute_index = get_neuron_index(layer, neuron_index);
 }
 
 void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
@@ -164,16 +196,16 @@ void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
     neuron->presynaptic_current *= P_11;
 }
 
-/*
-    Synapse
-*/
+/**************************
+        Synapse
+***************************/
 
 void create_synapse_pairs(LIFConnection ***synapses)
 {
     printf("\n");
-    for (int pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
+    for (uint8_t pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
-        for (int post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
+        for (uint8_t post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
         {
             printf("Generating synapses for pop_%d -> pop_%d...", pre_layer, post_layer);
             if (synapses[pre_layer][post_layer] == NULL)
@@ -181,7 +213,7 @@ void create_synapse_pairs(LIFConnection ***synapses)
                 printf("FAILED, no synapses between those populations. Skipping.\n");
                 continue;
             }
-            for (int sample = 0; sample < max_synapses_per_layer[pre_layer][post_layer]; ++sample)
+            for (uint32_t sample = 0; sample < max_synapses_per_layer[pre_layer][post_layer]; ++sample)
             {
                 synapses[pre_layer][post_layer][sample].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer] - 1); // indexes go up to N-1...
                 synapses[pre_layer][post_layer][sample].post_index = get_pseudorandom_int(0, pop_sizes[post_layer] - 1);
@@ -192,9 +224,9 @@ void create_synapse_pairs(LIFConnection ***synapses)
     }
 }
 
-/*
-    Network
-*/
+/**************************
+        Network
+***************************/
 
 void initialize_network(LIFNetwork *network)
 {
@@ -204,8 +236,9 @@ void initialize_network(LIFNetwork *network)
     network->layers = (LIFNeuron **)malloc(LAYER_NUMBER * sizeof(LIFNeuron *));
     network->synapses = (LIFConnection ***)malloc(LAYER_NUMBER * sizeof(LIFConnection **));
 
-    int max_synapses = 0;
-    int pre_layer, post_layer, pre_neuron;
+    uint32_t max_synapses = 0;
+    uint8_t pre_layer, post_layer;
+    uint32_t pre_neuron;
 
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
@@ -229,7 +262,7 @@ void initialize_network(LIFNetwork *network)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
         {
-            create_neuron(network->layers[pre_layer] + pre_neuron, pre_layer);
+            create_neuron(network->layers[pre_layer] + pre_neuron, pre_layer, pre_neuron);
         }
     }
     printf("DONE\n");
@@ -241,9 +274,9 @@ void initialize_network(LIFNetwork *network)
 void deinitialize_network(LIFNetwork *network)
 {
     printf("Releasing resources...");
-    for (int i = 0; i < LAYER_NUMBER; ++i)
+    for (uint8_t i = 0; i < LAYER_NUMBER; ++i)
     {
-        for (int j = 0; j < LAYER_NUMBER; ++j)
+        for (uint8_t j = 0; j < LAYER_NUMBER; ++j)
         {
             free(network->synapses[i][j]);
         }
@@ -257,25 +290,15 @@ void deinitialize_network(LIFNetwork *network)
     printf("DONE\n");
 }
 
-int get_neuron_index(MicrocircuitLayer layer, int neuron_index)
-{
-    int ret = 0;
-    for (int i = 0; i < layer; ++i)
-    {
-        ret += pop_sizes[i];
-    }
-    ret += neuron_index;
-    return ret;
-}
-
 void update_network(LIFNetwork *network)
 {
     /*
         Move PSPs to the destinations.
     */
-    int pre_neuron = -1;
-    int post_neuron = -1;
-    int pre_layer, post_layer, synapse;
+    uint32_t pre_neuron = -1;
+    uint32_t post_neuron = -1;
+    uint32_t synapse;
+    uint8_t pre_layer, post_layer;
 #ifdef MULTIPROCESSING
 #pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse)
 #endif
@@ -287,13 +310,14 @@ void update_network(LIFNetwork *network)
             {
                 pre_neuron = network->synapses[pre_layer][post_layer][synapse].pre_index;
                 post_neuron = network->synapses[pre_layer][post_layer][synapse].post_index;
-                if (network->activity[get_neuron_index(pre_layer, pre_neuron)] == 1)
+                if (network->activity[network->layers[pre_layer][pre_neuron].absoulute_index])
                 {
                     network->layers[post_layer][post_neuron].presynaptic_current += network->layers[pre_layer][pre_neuron].synaptic_amp;
                 }
             }
         }
     }
+#pragma omp barrier
 
     /*
         Actually sum the PSPs and apply dynamics.
@@ -319,34 +343,7 @@ void update_network(LIFNetwork *network)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
         {
-            network->activity[get_neuron_index(pre_layer, pre_neuron)] = network->layers[pre_layer][pre_neuron].spike;
+            network->activity[network->layers[pre_layer][pre_neuron].absoulute_index] = network->layers[pre_layer][pre_neuron].spike;
         }
     }
-}
-
-/**
- * This is highly experimental and needs to be thoroughly studied before I use it.
- */
-void save_network(LIFNetwork *network)
-{
-}
-
-/**
- * Saving the absolute indexes [0...77169] of the spiked neuron in the current timestep
- */
-void save_spikes(LIFNetwork *network, int step)
-{
-    FILE *f;
-    f = fopen("spikes.txt", "a+");
-    fprintf(f, "step:%d\n", step);
-    for (int i = 0; i < LAYER_NUMBER; ++i)
-    {
-        for (int j = 0; j < pop_sizes[i]; ++j)
-        {
-            if (network->layers[i][j].spike == 1)
-                fprintf(f, "%d,", get_neuron_index(i, j));
-        }
-    }
-    fprintf(f, "\n");
-    fclose(f);
 }

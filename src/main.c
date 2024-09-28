@@ -49,7 +49,6 @@ int main(int argc, char **argv)
     if (err == 1)
     {
         printf("Not implemented yet!\n");
-        save_network(&network); // for now it does nothing!
     }
     else
     {

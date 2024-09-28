@@ -2,7 +2,6 @@
 #define __MICROCIRCUIT_H
 
 #include <inttypes.h>
-// #include "constants.h"
 
 typedef enum
 {
@@ -16,30 +15,22 @@ typedef enum
     MLAYER_L6INH
 } MicrocircuitLayer;
 
-// typedef struct LIFSynapse
-// {
-//     int pre_layer;
-//     // int post_layer;
-//     int pre_index;
-//     // int post_index;
-// } LIFSynapse;
-
 typedef struct LIFNeuron
 {
+    uint32_t absoulute_index;
     float membrane;
     float synaptic_amp;
     float delay;
     float refractory;
     uint8_t spike;
-    // int (*synapses)[2]; // postsynaptic connections
-    int synapse_count;
+    uint32_t synapse_count;
     float presynaptic_current;
 } LIFNeuron;
 
 typedef struct LIFConnection
 {
-    int pre_index;
-    int post_index;
+    uint32_t pre_index;
+    uint32_t post_index;
 } LIFConnection;
 
 typedef struct LIFNetwork
@@ -49,13 +40,12 @@ typedef struct LIFNetwork
     uint8_t *activity;         // 1D
 } LIFNetwork;
 
-int synaptic_number_check();
+uint32_t synaptic_number_check();
 
 void initialize_network(LIFNetwork *network);
 void deinitialize_network(LIFNetwork *network);
 
 void update_network(LIFNetwork *network);
-void save_network(LIFNetwork *network);
-void save_spikes(LIFNetwork *network, int step);
+void save_spikes(LIFNetwork *network, uint32_t step);
 
 #endif
