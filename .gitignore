@@ -1,6 +1,7 @@
 .vscode/
 obj/
 spikes.txt
+debug.txt
 spikes.npy
 app
 callgrind*

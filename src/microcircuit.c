@@ -231,6 +231,10 @@ void create_synapse_pairs(LIFConnection ***synapses)
 
 void initialize_network(LIFNetwork *network)
 {
+
+#ifdef MULTIPROCESSING
+    omp_set_num_threads(NUM_THREADS);
+#endif
     srand(get_linux_random());
 
     printf("Reserving space for network...");
@@ -301,8 +305,12 @@ void update_network(LIFNetwork *network)
     uint32_t synapse;
     uint8_t pre_layer, post_layer;
 
+    /*
+        send synapses data and an empty vector for presynaptic currents. parallelize on gpu the synapses and change the sum to sum of mult with spike. maybe will be faster?
+    */
+
 #ifdef MULTIPROCESSING
-#pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse) shared(network)
+#pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse) shared(network) collapse(2)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
@@ -314,12 +322,17 @@ void update_network(LIFNetwork *network)
                 post_neuron = network->synapses[pre_layer][post_layer][synapse].post_index;
                 if (network->layers[pre_layer][pre_neuron].spike)
                 {
+#ifdef MULTIPROCESSING
+#pragma omp atomic update
+#endif
                     network->layers[post_layer][post_neuron].presynaptic_current += network->layers[pre_layer][pre_neuron].synaptic_amp;
                 }
             }
         }
     }
+#ifdef MULTIPROCESSING
 #pragma omp barrier
+#endif
 
     /*
         Actually sum the PSPs and apply dynamics.
