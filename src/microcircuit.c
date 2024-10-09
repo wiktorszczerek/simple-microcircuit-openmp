@@ -263,7 +263,9 @@ void initialize_network(LIFNetwork *network)
     printf("DONE\n");
     printf("Creating neurons...");
 #ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron) shared(network)
+#pragma omp parallel shared(network) num_threads(8)
+    srand(0);
+#pragma omp for private(pre_layer, pre_neuron)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
