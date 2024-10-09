@@ -269,8 +269,6 @@ void initialize_network(LIFNetwork *network)
 #ifdef MULTIPROCESSING
     omp_set_num_threads(NUM_THREADS);
 #endif
-    // srand(get_linux_random());
-    srand(0);
 
     printf("Reserving space for network...");
     network->neurons = (LIFNeuron *)malloc(NEURON_NUMBER * sizeof(LIFNeuron));
@@ -281,7 +279,9 @@ void initialize_network(LIFNetwork *network)
     uint32_t pre_neuron;
 
 #ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron) shared(network) num_threads(LAYER_NUMBER)
+#pragma omp parallel shared(network) num_threads(LAYER_NUMBER)
+    srand(0);
+#pragma omp for private(pre_layer, pre_neuron)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
@@ -312,17 +312,26 @@ void deinitialize_network(LIFNetwork *network)
 void update_network(LIFNetwork *network)
 {
     uint32_t neuron, pre_neuron;
+    LIFNeuron *current_neuron, *pre_neuron_ptr;
 #ifdef MULTIPROCESSING
 #pragma omp parallel for private(pre_neuron, neuron) shared(network)
 #endif
     for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
+        current_neuron = &(network->neurons[neuron]);
         for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
         {
-            if (network->neurons[network->neurons[neuron].presynaptic_neurons[pre_neuron].index + pop_starts[network->neurons[neuron].presynaptic_neurons[pre_neuron].layer]].spike)
-                network->neurons[neuron].presynaptic_current += network->neurons[pop_starts[network->neurons[neuron].presynaptic_neurons[pre_neuron].layer] + network->neurons[neuron].presynaptic_neurons[pre_neuron].index].synaptic_amp;
+            pre_neuron_ptr = &(network->neurons[pop_starts[current_neuron->presynaptic_neurons[pre_neuron].layer] + current_neuron->presynaptic_neurons[pre_neuron].index]);
+            if (pre_neuron_ptr->spike)
+                current_neuron->presynaptic_current += pre_neuron_ptr->synaptic_amp;
         }
+    }
+#ifdef MULTIPROCESSING
+#pragma omp barrier
+#pragma omp parallel for private(neuron) shared(network)
+#endif
+    for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
+    {
         update_neuron(&(network->neurons[neuron]), network->neurons[neuron].layer);
     }
-#pragma omp barrier
 }
