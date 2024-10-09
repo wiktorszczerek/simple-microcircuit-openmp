@@ -13,7 +13,7 @@ static const float SIMULATION_TIME = 1; // s
 static const float TIMESTEP = 0.0001;   // s
 
 #ifdef DEBUG
-static const int SIMULATION_STEPS = 100;
+static const int SIMULATION_STEPS = 1000;
 #else
 static const int SIMULATION_STEPS = (int)((float)SIMULATION_TIME / TIMESTEP);
 #endif
@@ -75,6 +75,20 @@ static const int pop_sizes[8] =
         L5_INH_POP_SIZE,
         L6_EXC_POP_SIZE,
         L6_INH_POP_SIZE};
+
+/*
+    Yes, it's hideous. Cry about it.
+*/
+static const int pop_starts[8] =
+    {
+        0,
+        L23_EXC_POP_SIZE,
+        L23_EXC_POP_SIZE + L23_INH_POP_SIZE,
+        L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE,
+        L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE + L4_INH_POP_SIZE,
+        L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE + L4_INH_POP_SIZE + L5_EXC_POP_SIZE,
+        L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE + L4_INH_POP_SIZE + L5_EXC_POP_SIZE + L5_INH_POP_SIZE,
+        L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE + L4_INH_POP_SIZE + L5_EXC_POP_SIZE + L5_INH_POP_SIZE + L6_EXC_POP_SIZE};
 
 static const float u_init[8][2] =
     {

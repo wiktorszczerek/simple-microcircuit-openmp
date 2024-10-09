@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
+#include <assert.h>
 
 /**************************
     Common functions
@@ -140,13 +141,10 @@ void save_spikes(LIFNetwork *network, uint32_t step)
     FILE *f;
     f = fopen("spikes.txt", "a+");
     fprintf(f, "step:%d\n", step);
-    for (uint8_t i = 0; i < LAYER_NUMBER; ++i)
+    for (uint32_t i = 0; i < NEURON_NUMBER; ++i)
     {
-        for (uint32_t j = 0; j < pop_sizes[i]; ++j)
-        {
-            if (network->layers[i][j].spike)
-                fprintf(f, "%d,", network->layers[i][j].absoulute_index);
-        }
+        if (network->neurons[i].spike)
+            fprintf(f, "%d,", i);
     }
     fprintf(f, "\n");
     fclose(f);
@@ -156,14 +154,16 @@ void save_spikes(LIFNetwork *network, uint32_t step)
         Neuron
 ***************************/
 
-void create_neuron(LIFNeuron *neuron, MicrocircuitLayer layer, uint32_t neuron_index)
+void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron_index)
 {
+    LIFNeuron *neuron = &(network->neurons[pop_starts[layer] + neuron_index]);
+    neuron->layer = layer;
     neuron->membrane = generate_initial_potential(layer);
     neuron->synaptic_amp = generate_synaptic_amp(layer);
     neuron->delay = generate_delay(layer);
     neuron->spike = 0;
     neuron->refractory = 0;
-    neuron->absoulute_index = get_neuron_index(layer, neuron_index);
+    neuron->synapse_count = 0;
 }
 
 void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
@@ -200,29 +200,60 @@ void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
         Synapse
 ***************************/
 
-void create_synapse_pairs(LIFConnection ***synapses)
+void create_synapse_pairs(LIFNetwork *network)
 {
+    network->synapse_count = 0;
+    for (uint8_t i = 0; i < LAYER_NUMBER; ++i)
+    {
+        for (uint8_t j = 0; j < LAYER_NUMBER; ++j)
+        {
+            network->synapse_count += max_synapses_per_layer[i][j];
+        }
+    }
+    network->synapses = malloc(network->synapse_count * sizeof(LIFConnection));
+
     printf("\n");
     // this could be parallelized but there's no point - it only runs once
+    uint32_t synapse_index = 0;
     for (uint8_t pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (uint8_t post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
         {
             printf("Generating synapses for pop_%d -> pop_%d...", pre_layer, post_layer);
-            if (synapses[pre_layer][post_layer] == NULL)
+            if (!max_synapses_per_layer[pre_layer][post_layer])
             {
                 printf("FAILED, no synapses between those populations. Skipping.\n");
                 continue;
             }
             for (uint32_t sample = 0; sample < max_synapses_per_layer[pre_layer][post_layer]; ++sample)
             {
-                synapses[pre_layer][post_layer][sample].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer] - 1); // indexes go up to N-1...
-                synapses[pre_layer][post_layer][sample].post_index = get_pseudorandom_int(0, pop_sizes[post_layer] - 1);
+
+                network->synapses[synapse_index].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer] - 1);
+                network->synapses[synapse_index].post_index = get_pseudorandom_int(0, pop_sizes[post_layer] - 1);
+                network->synapses[synapse_index].pre_layer = pre_layer;
+                network->synapses[synapse_index].post_layer = post_layer;
+                network->neurons[pop_starts[post_layer] + network->synapses[synapse_index].post_index].synapse_count++;
+                synapse_index++;
             }
             printf("DONE\n");
         }
         printf("\n");
     }
+
+    LIFNeuron *neuron_ptr;
+    for (uint32_t neuron = 0; neuron < NEURON_NUMBER; ++neuron)
+    {
+        neuron_ptr = network->neurons + neuron;
+        neuron_ptr->presynaptic_neurons = malloc(neuron_ptr->synapse_count * sizeof(LIFNeuronLocation));
+    }
+
+    uint32_t index = 0;
+    for (uint32_t synapse = 0; synapse < network->synapse_count; ++synapse)
+    {
+        network->neurons[pop_starts[network->synapses[synapse].post_layer] + network->synapses[synapse].post_index].presynaptic_neurons[index].layer = network->synapses[synapse].pre_layer;
+        network->neurons[pop_starts[network->synapses[synapse].post_layer] + network->synapses[synapse].post_index].presynaptic_neurons[index].index = network->synapses[synapse].pre_index;
+    }
+    free(network->synapses);
 }
 
 /**************************
@@ -238,113 +269,55 @@ void initialize_network(LIFNetwork *network)
     srand(get_linux_random());
 
     printf("Reserving space for network...");
-
-    network->layers = (LIFNeuron **)malloc(LAYER_NUMBER * sizeof(LIFNeuron *));
-    network->synapses = (LIFConnection ***)malloc(LAYER_NUMBER * sizeof(LIFConnection **));
-
-    uint32_t max_synapses = 0;
-    uint8_t pre_layer, post_layer;
-    uint32_t pre_neuron;
-
-    for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
-    {
-        network->layers[pre_layer] = (LIFNeuron *)malloc(pop_sizes[pre_layer] * sizeof(LIFNeuron));
-        network->synapses[pre_layer] = (LIFConnection **)malloc(LAYER_NUMBER * sizeof(LIFConnection *));
-        for (post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
-        {
-            max_synapses = max_synapses_per_layer[pre_layer][post_layer];
-            if (max_synapses == 0)
-                network->synapses[pre_layer][post_layer] = NULL;
-            else
-                network->synapses[pre_layer][post_layer] = (LIFConnection *)malloc(max_synapses * sizeof(LIFConnection));
-        }
-    }
+    network->neurons = (LIFNeuron *)malloc(NEURON_NUMBER * sizeof(LIFNeuron));
     printf("DONE\n");
     printf("Creating neurons...");
+    fflush(stdout);
+    uint8_t pre_layer;
+    uint32_t pre_neuron;
+
 #ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron) shared(network)
+#pragma omp parallel for private(pre_layer, pre_neuron) shared(network) num_threads(LAYER_NUMBER)
 #endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
         {
-            create_neuron(network->layers[pre_layer] + pre_neuron, pre_layer, pre_neuron);
+            create_neuron(network, pre_layer, pre_neuron);
         }
     }
     printf("DONE\n");
     printf("Generating neuron pairs");
-    create_synapse_pairs(network->synapses);
+    create_synapse_pairs(network);
     printf("Generating neuron pairs complete\n");
 }
 
 void deinitialize_network(LIFNetwork *network)
 {
     printf("Releasing resources...");
-    for (uint8_t i = 0; i < LAYER_NUMBER; ++i)
+    for (uint32_t i = 0; i < NEURON_NUMBER; ++i)
     {
-        for (uint8_t j = 0; j < LAYER_NUMBER; ++j)
-        {
-            free(network->synapses[i][j]);
-        }
-        free(network->synapses[i]);
-        free(network->layers[i]);
+        free(network->neurons[i].presynaptic_neurons);
     }
-
-    free(network->synapses);
-    free(network->layers);
+    free(network->neurons);
+    // free(network->synapses);
+    // free(network);
     printf("DONE\n");
 }
 
 void update_network(LIFNetwork *network)
 {
-    /*
-        Move PSPs to the destinations.
-    */
-    uint32_t pre_neuron = -1;
-    uint32_t post_neuron = -1;
-    uint32_t synapse;
-    uint8_t pre_layer, post_layer;
-
-    /*
-        send synapses data and an empty vector for presynaptic currents. parallelize on gpu the synapses and change the sum to sum of mult with spike. maybe will be faster?
-    */
-
+    uint32_t neuron, pre_neuron;
 #ifdef MULTIPROCESSING
-#pragma omp parallel for firstprivate(pre_neuron, post_neuron) private(pre_layer, post_layer, synapse) shared(network) collapse(2)
+#pragma omp parallel for private(pre_neuron, neuron) shared(network)
 #endif
-    for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
+    for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
-        for (post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
+        for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
         {
-            for (synapse = 0; synapse < max_synapses_per_layer[pre_layer][post_layer]; ++synapse)
-            {
-                pre_neuron = network->synapses[pre_layer][post_layer][synapse].pre_index;
-                post_neuron = network->synapses[pre_layer][post_layer][synapse].post_index;
-                if (network->layers[pre_layer][pre_neuron].spike)
-                {
-#ifdef MULTIPROCESSING
-#pragma omp atomic update
-#endif
-                    network->layers[post_layer][post_neuron].presynaptic_current += network->layers[pre_layer][pre_neuron].synaptic_amp;
-                }
-            }
+            network->neurons[neuron].presynaptic_current += network->neurons[pop_starts[network->neurons[neuron].presynaptic_neurons[pre_neuron].layer] + network->neurons[neuron].presynaptic_neurons[pre_neuron].index].synaptic_amp;
         }
+        update_neuron(&(network->neurons[neuron]), network->neurons[neuron].layer);
     }
-#ifdef MULTIPROCESSING
 #pragma omp barrier
-#endif
-
-    /*
-        Actually sum the PSPs and apply dynamics.
-    */
-#ifdef MULTIPROCESSING
-#pragma omp parallel for private(pre_layer, pre_neuron) shared(network)
-#endif
-    for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
-    {
-        for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
-        {
-            update_neuron(&(network->layers[pre_layer][pre_neuron]), pre_layer);
-        }
-    }
 }
