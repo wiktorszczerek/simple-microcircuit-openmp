@@ -6,3 +6,4 @@ spikes.npy
 app
 callgrind*
 .dat
+debug_copy.txt
