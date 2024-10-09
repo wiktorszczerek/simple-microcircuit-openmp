@@ -316,7 +316,8 @@ void update_network(LIFNetwork *network)
     {
         for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
         {
-            network->neurons[neuron].presynaptic_current += network->neurons[pop_starts[network->neurons[neuron].presynaptic_neurons[pre_neuron].layer] + network->neurons[neuron].presynaptic_neurons[pre_neuron].index].synaptic_amp;
+            if (network->neurons[network->neurons[neuron].presynaptic_neurons[pre_neuron].index + pop_starts[network->neurons[neuron].presynaptic_neurons[pre_neuron].layer]].spike)
+                network->neurons[neuron].presynaptic_current += network->neurons[pop_starts[network->neurons[neuron].presynaptic_neurons[pre_neuron].layer] + network->neurons[neuron].presynaptic_neurons[pre_neuron].index].synaptic_amp;
         }
         update_neuron(&(network->neurons[neuron]), network->neurons[neuron].layer);
     }
