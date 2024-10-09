@@ -235,7 +235,8 @@ void initialize_network(LIFNetwork *network)
 #ifdef MULTIPROCESSING
     omp_set_num_threads(NUM_THREADS);
 #endif
-    srand(get_linux_random());
+    // srand(get_linux_random());
+    srand(0);
 
     printf("Reserving space for network...");
 
