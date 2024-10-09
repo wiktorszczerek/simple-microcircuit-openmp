@@ -13,7 +13,7 @@ static const float SIMULATION_TIME = 1; // s
 static const float TIMESTEP = 0.0001;   // s
 
 #ifdef DEBUG
-static const int SIMULATION_STEPS = 2;
+static const int SIMULATION_STEPS = 500;
 #else
 static const int SIMULATION_STEPS = (int)((float)SIMULATION_TIME / TIMESTEP);
 #endif
