@@ -30,6 +30,7 @@ typedef struct LIFNeuron
     float refractory;
     uint8_t spike;
     uint32_t synapse_count;
+    uint32_t synapse_counter;
     float presynaptic_current;
     LIFNeuronLocation *presynaptic_neurons;
 } LIFNeuron;

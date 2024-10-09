@@ -164,6 +164,8 @@ void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron
     neuron->spike = 0;
     neuron->refractory = 0;
     neuron->synapse_count = 0;
+
+    neuron->synapse_counter = 0;
 }
 
 void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
@@ -247,11 +249,12 @@ void create_synapse_pairs(LIFNetwork *network)
         neuron_ptr->presynaptic_neurons = malloc(neuron_ptr->synapse_count * sizeof(LIFNeuronLocation));
     }
 
-    uint32_t index = 0;
     for (uint32_t synapse = 0; synapse < network->synapse_count; ++synapse)
     {
-        network->neurons[pop_starts[network->synapses[synapse].post_layer] + network->synapses[synapse].post_index].presynaptic_neurons[index].layer = network->synapses[synapse].pre_layer;
-        network->neurons[pop_starts[network->synapses[synapse].post_layer] + network->synapses[synapse].post_index].presynaptic_neurons[index].index = network->synapses[synapse].pre_index;
+        neuron_ptr = &(network->neurons[pop_starts[network->synapses[synapse].post_layer] + network->synapses[synapse].post_index]);
+        neuron_ptr->presynaptic_neurons[neuron_ptr->synapse_counter].layer = network->synapses[synapse].pre_layer;
+        neuron_ptr->presynaptic_neurons[neuron_ptr->synapse_counter].index = network->synapses[synapse].pre_index;
+        neuron_ptr->synapse_counter++;
     }
     free(network->synapses);
 }
