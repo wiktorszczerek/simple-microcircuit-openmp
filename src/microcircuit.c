@@ -10,9 +10,10 @@
     Common functions
 ***************************/
 
-// int synapse_number = 0;
-
-// TODO: add a license here
+/*
+    Implementation of randn() published on: https://kcru.lawsonresearch.ca/research/srk/normalDBN_random.html.
+    All rights go to their respective owners.
+*/
 double randn(double mu, double sigma)
 {
     double U1, U2, W, mult;
@@ -116,8 +117,9 @@ uint32_t synaptic_number_check()
 uint32_t get_linux_random()
 {
     FILE *file = fopen("/dev/urandom", "r");
-    uint32_t i;
-    fread(&i, sizeof(i), 1, file);
+    uint32_t i = 0;
+    if (!fread(&i, sizeof(i), 1, file))
+        printf("ERROR: Couldn't read the Linux random. Defaulting to 0.\n");
     fclose(file);
     return i;
 }
@@ -164,19 +166,15 @@ void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron
     neuron->spike = 0;
     neuron->refractory = 0;
     neuron->synapse_count = 0;
-
-    neuron->synapse_counter = 0;
 }
 
-void update_neuron(LIFNeuron *neuron, MicrocircuitLayer layer)
+void update_neuron(LIFNeuron *neuron)
 {
     // assume spike = 0
     neuron->spike = 0;
 
-    // Other inputs are summed up beforehand
-    // thalamic inputs
-    neuron->presynaptic_current += F_TH * thalamic_sizes[layer] * W_EXT * TAU_SYN; // for now not this: generate_thalamic_spikes(layer) * W_F * W_EXT;
-    // neuron->presynaptic_current += generate_thalamic_spikes(layer) * W_EXT;
+    // thalamic inputs approximation
+    neuron->presynaptic_current += F_TH * thalamic_sizes[neuron->layer] * W_EXT * TAU_SYN;
 
     // update refractory
     if (neuron->membrane >= U_THR)
@@ -212,7 +210,7 @@ void create_synapse_pairs(LIFNetwork *network)
             network->synapse_count += max_synapses_per_layer[i][j];
         }
     }
-    network->synapses = malloc(network->synapse_count * sizeof(LIFConnection));
+    LIFConnection *synapses = malloc(network->synapse_count * sizeof(LIFConnection));
 
     printf("\n");
     // this could be parallelized but there's no point - it only runs once
@@ -229,12 +227,11 @@ void create_synapse_pairs(LIFNetwork *network)
             }
             for (uint32_t sample = 0; sample < max_synapses_per_layer[pre_layer][post_layer]; ++sample)
             {
-
-                network->synapses[synapse_index].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer] - 1);
-                network->synapses[synapse_index].post_index = get_pseudorandom_int(0, pop_sizes[post_layer] - 1);
-                network->synapses[synapse_index].pre_layer = pre_layer;
-                network->synapses[synapse_index].post_layer = post_layer;
-                network->neurons[pop_starts[post_layer] + network->synapses[synapse_index].post_index].synapse_count++;
+                synapses[synapse_index].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer] - 1);
+                synapses[synapse_index].post_index = get_pseudorandom_int(0, pop_sizes[post_layer] - 1);
+                synapses[synapse_index].pre_layer = pre_layer;
+                synapses[synapse_index].post_layer = post_layer;
+                network->neurons[pop_starts[post_layer] + synapses[synapse_index].post_index].synapse_count++;
                 synapse_index++;
             }
             printf("DONE\n");
@@ -242,21 +239,27 @@ void create_synapse_pairs(LIFNetwork *network)
         printf("\n");
     }
 
-    LIFNeuron *neuron_ptr;
+    LIFNeuron *pre_neuron, *post_neuron;
+
     for (uint32_t neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
-        neuron_ptr = network->neurons + neuron;
-        neuron_ptr->presynaptic_neurons = malloc(neuron_ptr->synapse_count * sizeof(LIFNeuronLocation));
+        post_neuron = network->neurons + neuron;
+        post_neuron->presynaptic_neurons = malloc(post_neuron->synapse_count * sizeof(LIFNeuron *));
     }
 
+    uint32_t *neuron_indexes = calloc(NEURON_NUMBER, sizeof(uint32_t));
+    uint32_t pre_index, post_index;
     for (uint32_t synapse = 0; synapse < network->synapse_count; ++synapse)
     {
-        neuron_ptr = &(network->neurons[pop_starts[network->synapses[synapse].post_layer] + network->synapses[synapse].post_index]);
-        neuron_ptr->presynaptic_neurons[neuron_ptr->synapse_counter].layer = network->synapses[synapse].pre_layer;
-        neuron_ptr->presynaptic_neurons[neuron_ptr->synapse_counter].index = network->synapses[synapse].pre_index;
-        neuron_ptr->synapse_counter++;
+        pre_index = pop_starts[synapses[synapse].pre_layer] + synapses[synapse].pre_index;
+        post_index = pop_starts[synapses[synapse].post_layer] + synapses[synapse].post_index;
+        pre_neuron = &(network->neurons[pre_index]);
+        post_neuron = &(network->neurons[post_index]);
+        post_neuron->presynaptic_neurons[neuron_indexes[post_index]] = pre_neuron;
+        neuron_indexes[post_index]++;
     }
-    free(network->synapses);
+    free(neuron_indexes);
+    free(synapses);
 }
 
 /**************************
@@ -304,8 +307,6 @@ void deinitialize_network(LIFNetwork *network)
         free(network->neurons[i].presynaptic_neurons);
     }
     free(network->neurons);
-    // free(network->synapses);
-    // free(network);
     printf("DONE\n");
 }
 
@@ -321,7 +322,7 @@ void update_network(LIFNetwork *network)
         current_neuron = &(network->neurons[neuron]);
         for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
         {
-            pre_neuron_ptr = &(network->neurons[pop_starts[current_neuron->presynaptic_neurons[pre_neuron].layer] + current_neuron->presynaptic_neurons[pre_neuron].index]);
+            pre_neuron_ptr = current_neuron->presynaptic_neurons[pre_neuron];
             if (pre_neuron_ptr->spike)
                 current_neuron->presynaptic_current += pre_neuron_ptr->synaptic_amp;
         }
@@ -332,6 +333,6 @@ void update_network(LIFNetwork *network)
 #endif
     for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
-        update_neuron(&(network->neurons[neuron]), network->neurons[neuron].layer);
+        update_neuron(&(network->neurons[neuron]));
     }
 }

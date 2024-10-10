@@ -3,6 +3,10 @@
 
 #include <inttypes.h>
 
+typedef struct LIFNeuron LIFNeuron;
+typedef struct LIFConnection LIFConnection;
+typedef struct LIFNetwork LIFNetwork;
+
 typedef enum
 {
     MLAYER_L23EXC,
@@ -15,13 +19,7 @@ typedef enum
     MLAYER_L6INH
 } MicrocircuitLayer;
 
-typedef struct LIFNeuronLocation
-{
-    uint8_t layer;
-    uint32_t index;
-} LIFNeuronLocation;
-
-typedef struct LIFNeuron
+struct LIFNeuron
 {
     uint8_t layer;
     float membrane;
@@ -30,27 +28,23 @@ typedef struct LIFNeuron
     float refractory;
     uint8_t spike;
     uint32_t synapse_count;
-    uint32_t synapse_counter;
     float presynaptic_current;
-    LIFNeuronLocation *presynaptic_neurons;
-} LIFNeuron;
+    LIFNeuron **presynaptic_neurons;
+};
 
-typedef struct LIFConnection
+struct LIFConnection
 {
     uint8_t pre_layer;
     uint32_t pre_index;
     uint8_t post_layer;
     uint32_t post_index;
-} LIFConnection;
+};
 
-typedef struct LIFNetwork
+struct LIFNetwork
 {
     LIFNeuron *neurons;
-    LIFConnection *synapses;
     uint32_t synapse_count;
-    // LIFConnection ***synapses; // 3D? -> 8 x 8 array of arrays
-    // LIFNeuron **layers;        // 2D -> 8 layers by howevery many neurons
-} LIFNetwork;
+};
 
 uint32_t synaptic_number_check();
 
