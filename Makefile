@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -fopenmp -O1 -g
+CFLAGS = -Wall -fopenmp -O0 -g
 
 TARGET = app
 OUTPUT_FILE = spikes.txt
@@ -13,7 +13,7 @@ OBJS := $(SRCS:%=$(OBJ_DIR)/%.o)
 
 LIBS = -lm
 
-RUN_FLAGS = -r
+RUN_FLAGS = -r 1000
 
 
 $(TARGET): clean $(OBJS)
@@ -25,6 +25,9 @@ $(OBJ_DIR)/%.c.o: %.c
 
 run:
 	./$(TARGET) $(RUN_FLAGS)
+
+visualize:
+	python3 visualize.py spikes.txt
 
 .PHONY: clean
 

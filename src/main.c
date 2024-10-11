@@ -14,9 +14,9 @@ double gettime(void)
 
 int process_input_args(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc > 3)
     {
-        printf("Incorrect number of arguments provided. Expected 1 argument.\n");
+        printf("Incorrect number of arguments provided. Expected an option and a specifier.\n");
         printf("Help: %s -h\n", argv[0]);
         return -1;
     }
@@ -50,18 +50,23 @@ int main(int argc, char **argv)
     {
         printf("Not implemented yet!\n");
     }
-    else
+    else if (argc != 3)
     {
-        // For now this step is run always.
+        printf("Provide number of steps to simulate!");
+        exit(1);
+    }
+    {
+
+        uint32_t sim_steps = (uint32_t)strtol(argv[2], NULL, 10);
         initialize_network(&network);
         printf("Initialization done.\n\n");
         fflush(stdout);
         dtime = gettime();
-        for (int i = 0; i < SIMULATION_STEPS; ++i)
+        for (int i = 0; i < sim_steps; ++i)
         {
-            printf("Simulating step %d of %d...\r", i + 1, SIMULATION_STEPS);
+            printf("Simulating step %d of %d...\r", i + 1, sim_steps);
             fflush(stdout);
-            update_network(&network);
+            update_network(&network, i);
             save_spikes(&network, i);
         }
         dtime = gettime() - dtime;

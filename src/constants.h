@@ -1,39 +1,29 @@
-
+#ifndef __CONSTANTS_H
+#define __CONSTANTS_H
 /*
     general parameters
 */
-// #include <math.h>
 
 #define DEBUG
 #define MULTIPROCESSING
 
-static const int NUM_THREADS = 16;
-
-static const float SIMULATION_TIME = 1; // s
-static const float TIMESTEP = 0.0001;   // s
-
-#ifdef DEBUG
-static const int SIMULATION_STEPS = 2;
-#else
-static const int SIMULATION_STEPS = (int)((float)SIMULATION_TIME / TIMESTEP);
-#endif
+static const float TIMESTEP = 0.0001; // s
 
 static const float CAPACITANCE = 0.00000025; // pF
 static const float TAU_M = 10;
-static const float TAU_REF = 2;
+static const uint8_t TAU_REF = 2;
 static const float TAU_SYN = 0.5;
 static const float U_REST = -65.0;
 static const float U_THR = -50.0;
 static const float F_TH = 8.0;
 static const float W_EXT = 0.15;
 static const float W_F = 585.0;    // synapse amp scale
-static const float P_11 = 0.82;    // membrane decay
-static const float P_22 = 0.99;    // presynaptic decay
+static const float P_11 = 0.82;    // presynaptic decay
+static const float P_22 = 0.99;    // membrane decay
 static const float P_21 = 0.00036; // injection scale
 
 static const int NEURON_NUMBER = 77169;
 static const int LAYER_NUMBER = 8;
-static const int INITIAL_SYNAPSE_NUMBER = 20000; // this IS too much and it's okay
 
 #define L23_EXC_POP_SIZE 20683
 #define L23_INH_POP_SIZE 5834
@@ -53,6 +43,18 @@ static const int INITIAL_SYNAPSE_NUMBER = 20000; // this IS too much and it's ok
 #define L5_INH_THALAMIC_NUMBER 1900
 #define L6_EXC_THALAMIC_NUMBER 2900
 #define L6_INH_THALAMIC_NUMBER 2100
+
+// this is for 0.0001s timestep
+static const float thalamic_currents[8] =
+    {
+        0.096,
+        0.09,
+        0.126,
+        0.114,
+        0.12,
+        0.114,
+        0.174,
+        0.126};
 
 static const int thalamic_sizes[8] =
     {
@@ -149,4 +151,6 @@ static const int max_synapses_per_layer[8][8] =
     Messages.
 */
 static const char *help_msg =
-    "Possible options are:\n\t-h: View this help.\n\t-g: Generate new microcircuit and store it in the file.\n\t-r: Run the simulation";
+    "Possible options are:\n\t-h: View this help.\n\t-g: Generate new microcircuit and store it in the file.\n\t-r N: Run the simulation for N steps";
+
+#endif

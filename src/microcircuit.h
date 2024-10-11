@@ -24,11 +24,14 @@ struct LIFNeuron
     uint8_t layer;
     float membrane;
     float synaptic_amp;
-    float delay;
-    float refractory;
+    uint32_t delay;
+    uint8_t refractory;
     uint8_t spike;
+    uint32_t spike_timestamps[2];
+    uint8_t spike_timestamp_flag;
     uint32_t synapse_count;
     float presynaptic_current;
+    float total_current;
     LIFNeuron **presynaptic_neurons;
 };
 
@@ -44,6 +47,7 @@ struct LIFNetwork
 {
     LIFNeuron *neurons;
     uint32_t synapse_count;
+    uint32_t current_timestep;
 };
 
 uint32_t synaptic_number_check();
@@ -51,7 +55,7 @@ uint32_t synaptic_number_check();
 void initialize_network(LIFNetwork *network);
 void deinitialize_network(LIFNetwork *network);
 
-void update_network(LIFNetwork *network);
+void update_network(LIFNetwork *network, uint32_t current_timestep);
 void save_spikes(LIFNetwork *network, uint32_t step);
 
 #endif

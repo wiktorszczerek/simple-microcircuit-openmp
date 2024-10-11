@@ -1,6 +1,5 @@
+from tabnanny import verbose
 from matplotlib import pyplot as plt
-from itertools import zip_longest
-
 step_num = 0
 step = []
 steps = []
@@ -19,18 +18,27 @@ with open("./spikes.txt", "r") as file:
 
 del step
 print("Data loaded.")
-print("Converting to eventplot format...")
-steps_actual = [[] for _ in range(77169)]
+# print("Converting to eventplot format...")
+# steps_actual = [[] for _ in range(77169)]
 
-for s_index, s_value  in enumerate(steps):
-    for neuron in s_value:
-        steps_actual[neuron].append(s_index)
+# for s_index, s_value  in enumerate(steps):
+#     for neuron in s_value:
+#         steps_actual[neuron].append(s_index)
 
-del steps
+# del steps
 # steps = list(map(list, zip_longest(*steps, fillvalue=None)))
 
 
 print("Plotting...")
-plt.eventplot(steps_actual[:2000], colors='black', lineoffsets=1, linelengths=0.3, linewidths=0.3)
+colors1 = [f'C{i}' for i in range(2)]
+plt.eventplot(steps, colors='black', lineoffsets=1, linelengths=0.2, linewidths=0.5, orientation='vertical', antialiased=True, snap=False)
+plt.axhline(y=20683, color='r', linestyle='--')
+plt.axhline(y=26517, color='g', linestyle='--')
+plt.axhline(y=48432, color='b', linestyle='--')
+plt.axhline(y=53911, color='c', linestyle='--')
+plt.axhline(y=58761, color='m', linestyle='--')
+plt.axhline(y=59826, color='y', linestyle='--')
+plt.axhline(y=74221, color='k', linestyle='--')
+plt.ylim(bottom=0, top=77169)
+plt.xlim(left=0, right=step_num)
 plt.show()
-
