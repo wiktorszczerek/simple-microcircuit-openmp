@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -fopenmp -O0 -g
+CFLAGS = -Wall -fopenmp -O1 -g
 
 TARGET = app
 OUTPUT_FILE = spikes.txt
@@ -13,7 +13,7 @@ OBJS := $(SRCS:%=$(OBJ_DIR)/%.o)
 
 LIBS = -lm
 
-RUN_FLAGS = -r 20
+RUN_FLAGS = -r 100
 
 
 $(TARGET): clean $(OBJS)
