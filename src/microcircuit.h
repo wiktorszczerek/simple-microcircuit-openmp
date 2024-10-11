@@ -22,8 +22,8 @@ typedef enum
 struct LIFNeuron
 {
     uint8_t layer;
-    float membrane;
-    float synaptic_amp;
+    double membrane;
+    double synaptic_amp;
     uint32_t delay;
     uint8_t refractory;
     uint8_t spike;
@@ -31,8 +31,8 @@ struct LIFNeuron
     uint32_t spike_timestamps[2];
     uint8_t spike_timestamp_flag;
     uint32_t synapse_count;
-    float presynaptic_current;
-    float total_current;
+    double presynaptic_current;
+    double total_current;
     LIFNeuron **presynaptic_neurons;
 };
 

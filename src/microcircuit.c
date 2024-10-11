@@ -41,19 +41,31 @@ double randn(double mu, double sigma)
     return (mu + sigma * (double)X1);
 }
 
-float generate_delay(MicrocircuitLayer layer)
+double generate_delay(MicrocircuitLayer layer)
 {
-    return (float)randn(delta_i[layer][0], delta_i[layer][1]);
+    double res;
+    while ((res = randn(delta_i[layer][0], delta_i[layer][1])) <= 0.0)
+    {
+    };
+    return res;
 }
 
-float generate_synaptic_amp(MicrocircuitLayer layer)
+double generate_synaptic_amp(MicrocircuitLayer layer)
 {
-    return (float)randn(w_i[layer][0], w_i[layer][1]);
+    double res;
+    while ((res = randn(w_i[layer][0], w_i[layer][1])) == 0)
+    {
+    };
+    return res;
 }
 
-float generate_initial_potential(MicrocircuitLayer layer)
+double generate_initial_potential(MicrocircuitLayer layer)
 {
-    return (float)randn(u_init[layer][0], u_init[layer][1]);
+    double res;
+    while ((res = randn(u_init[layer][0], u_init[layer][1])) >= 0.0)
+    {
+    };
+    return res;
 }
 
 uint32_t get_pseudorandom_int(uint32_t start, uint32_t stop)
@@ -66,7 +78,7 @@ double generate_uniform_probability()
     return ((double)rand() / (double)RAND_MAX);
 }
 
-float generate_poisson_probability(float lambda, float k)
+double generate_poisson_probability(double lambda, double k)
 {
     return (pow(lambda, k) * exp(-lambda)) / tgamma(k + 1);
 }
@@ -178,11 +190,14 @@ void save_spiking_rates(LIFNetwork *network)
 
 void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron_index)
 {
+    double delay;
     LIFNeuron *neuron = &(network->neurons[pop_starts[layer] + neuron_index]);
     neuron->layer = layer;
     neuron->membrane = generate_initial_potential(layer);
     neuron->synaptic_amp = generate_synaptic_amp(layer);
-    neuron->delay = (uint32_t)ceil(10 * generate_delay(layer));
+    delay = ceil(10 * generate_delay(layer));
+    assert(delay >= 0);
+    neuron->delay = delay;
     neuron->spike = 0;
     neuron->refractory = 0;
     neuron->synapse_count = 0;

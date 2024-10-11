@@ -7,20 +7,20 @@
 #define DEBUG
 #define MULTIPROCESSING
 
-static const float TIMESTEP = 0.0001; // s
+static const double TIMESTEP = 0.0001; // s
 
-static const float CAPACITANCE = 0.00000025; // pF
-static const float TAU_M = 10;
+static const double CAPACITANCE = 0.00000025; // pF
+static const double TAU_M = 10;
 static const uint8_t TAU_REF = 2;
-static const float TAU_SYN = 0.5;
-static const float U_REST = -65.0;
-static const float U_THR = -50.0;
-static const float F_TH = 8.0;
-static const float W_EXT = 0.15;
-static const float W_F = 585.0;    // synapse amp scale
-static const float P_11 = 0.82;    // presynaptic decay
-static const float P_22 = 0.99;    // membrane decay
-static const float P_21 = 0.00036; // injection scale
+static const double TAU_SYN = 0.5;
+static const double U_REST = -65.0;
+static const double U_THR = -50.0;
+static const double F_TH = 8.0;
+static const double W_EXT = 0.15;
+static const double W_F = 585.0;    // synapse amp scale
+static const double P_11 = 0.82;    // presynaptic decay
+static const double P_22 = 0.99;    // membrane decay
+static const double P_21 = 0.00036; // injection scale
 
 static const int NEURON_NUMBER = 77169;
 static const int LAYER_NUMBER = 8;
@@ -45,7 +45,7 @@ static const int LAYER_NUMBER = 8;
 #define L6_INH_THALAMIC_NUMBER 2100
 
 // this is for 0.0001s timestep
-static const float thalamic_currents[8] =
+static const double thalamic_currents[8] =
     {
         0.096,
         0.09,
@@ -92,7 +92,7 @@ static const int pop_starts[8] =
         L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE + L4_INH_POP_SIZE + L5_EXC_POP_SIZE + L5_INH_POP_SIZE,
         L23_EXC_POP_SIZE + L23_INH_POP_SIZE + L4_EXC_POP_SIZE + L4_INH_POP_SIZE + L5_EXC_POP_SIZE + L5_INH_POP_SIZE + L6_EXC_POP_SIZE};
 
-static const float u_init[8][2] =
+static const double u_init[8][2] =
     {
         {-68.28, 5.36},
         {-63.16, 4.57},
@@ -103,7 +103,7 @@ static const float u_init[8][2] =
         {-66.72, 5.46},
         {-61.43, 4.48}};
 
-static const float w_i[8][2] =
+static const double w_i[8][2] =
     {
         {0.15, 0.015},
         {-0.6, 0.06},
@@ -114,7 +114,7 @@ static const float w_i[8][2] =
         {0.15, 0.015},
         {-0.6, 0.06}};
 
-static const float delta_i[8][2] =
+static const double delta_i[8][2] =
     {
         {1.5, 0.75},
         {0.75, 0.325},
