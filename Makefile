@@ -13,7 +13,7 @@ OBJS := $(SRCS:%=$(OBJ_DIR)/%.o)
 
 LIBS = -lm
 
-RUN_FLAGS = -r 1000
+RUN_FLAGS = -r 20
 
 
 $(TARGET): clean $(OBJS)

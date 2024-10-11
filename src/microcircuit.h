@@ -27,6 +27,7 @@ struct LIFNeuron
     uint32_t delay;
     uint8_t refractory;
     uint8_t spike;
+    uint32_t spike_number;
     uint32_t spike_timestamps[2];
     uint8_t spike_timestamp_flag;
     uint32_t synapse_count;
@@ -57,5 +58,6 @@ void deinitialize_network(LIFNetwork *network);
 
 void update_network(LIFNetwork *network, uint32_t current_timestep);
 void save_spikes(LIFNetwork *network, uint32_t step);
+void save_spiking_rates(LIFNetwork *network);
 
 #endif

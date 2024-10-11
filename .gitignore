@@ -7,3 +7,4 @@ app
 callgrind*
 .dat
 debug_copy.txt
+additional_data.txt

@@ -155,6 +155,22 @@ void save_spikes(LIFNetwork *network, uint32_t step)
     fclose(f);
 }
 
+void save_spiking_rates(LIFNetwork *network)
+{
+    FILE *f;
+    f = fopen("additional_data.txt", "w+");
+    uint32_t spike_nums[8] = {0};
+    for (uint32_t i = 0; i < NEURON_NUMBER; ++i)
+    {
+        spike_nums[network->neurons[i].layer] += network->neurons[i].spike_number;
+    }
+    for (uint8_t i = 0; i < 8; ++i)
+    {
+        fprintf(f, "Layer %d: %u\n", i, spike_nums[i]);
+    }
+    fclose(f);
+}
+
 /**************************
         Neuron
 ***************************/
@@ -174,6 +190,7 @@ void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron
     neuron->total_current = 0.0;
     neuron->presynaptic_current = 0.0;
     neuron->spike_timestamp_flag = 0;
+    neuron->spike_number = 0;
 }
 
 /**************************
@@ -270,6 +287,7 @@ void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalam
         else
             neuron->spike_timestamps[1] = current_timestep + neuron->delay;
         neuron->spike = 1;
+        neuron->spike_number++;
         neuron->refractory = TAU_REF;
     }
     else if (neuron->refractory > 0)

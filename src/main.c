@@ -56,7 +56,6 @@ int main(int argc, char **argv)
         exit(1);
     }
     {
-
         uint32_t sim_steps = (uint32_t)strtol(argv[2], NULL, 10);
         initialize_network(&network);
         printf("Initialization done.\n\n");
@@ -71,6 +70,7 @@ int main(int argc, char **argv)
         }
         dtime = gettime() - dtime;
         printf("Elapsed time: %9.5f seconds\n", dtime);
+        save_spiking_rates(&network);
         deinitialize_network(&network);
     }
     return 0;
