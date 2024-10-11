@@ -163,6 +163,7 @@ void save_spiking_rates(LIFNetwork *network)
     for (uint32_t i = 0; i < NEURON_NUMBER; ++i)
     {
         spike_nums[network->neurons[i].layer] += network->neurons[i].spike_number;
+        fprintf(f, "Neuron %u: membrane: %f, delay: %u, syn: %f\n", i, network->neurons[i].membrane, network->neurons[i].delay, network->neurons[i].synaptic_amp);
     }
     for (uint8_t i = 0; i < 8; ++i)
     {
@@ -361,15 +362,9 @@ void initialize_network(LIFNetwork *network)
     fflush(stdout);
     uint8_t pre_layer;
     uint32_t pre_neuron;
-#ifdef MULTIPROCESSING
-    uint32_t thread_id;
-#pragma omp parallel private(thread_id)
-    {
-        thread_id = omp_get_thread_num();
-        srand(thread_id);
-    }
-#pragma omp parallel for private(pre_layer, pre_neuron) num_threads(8) shared(network)
-#endif
+
+    // generation has to be serial to achieve replicability - both neurons and synapses
+    srand(10);
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
