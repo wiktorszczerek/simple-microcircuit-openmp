@@ -32,6 +32,7 @@ struct LIFNeuron
     uint8_t spike_timestamp_flag;
     uint32_t synapse_count;
     double presynaptic_current;
+    double thalamic_spikes;
     double total_current;
     LIFNeuron **presynaptic_neurons;
 };

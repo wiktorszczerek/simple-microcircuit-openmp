@@ -11,7 +11,7 @@ static const double TIMESTEP = 0.0001; // s
 
 static const double CAPACITANCE = 0.00000025; // F
 static const double TAU_M = 10;
-static const uint8_t TAU_REF = 2;
+static const uint8_t TAU_REF = 20; // !!! (2ms = 20 timesteps of 0.0001s)
 static const double TAU_SYN = 0.5;
 static const double U_REST = -65.0;
 static const double U_THR = -50.0;
