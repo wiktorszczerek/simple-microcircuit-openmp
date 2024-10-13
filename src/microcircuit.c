@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
-#include <assert.h>
 #include <gsl/gsl_randist.h>
 
 /**************************
@@ -55,12 +54,13 @@ uint32_t generate_thalamic_spikes(MicrocircuitLayer layer)
 void random_test()
 {
     gsl_gen = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
-    // gsl_rng_set(gsl_gen, 123);
+    gsl_rng_set(gsl_gen, 0);
     uint32_t test_size = 100000;
     double test[test_size];
     double avg = 0.0;
     double variance = 0.0;
     double std = 0.0;
+    uint32_t test_int = 0;
     for (uint32_t i = 0; i < test_size; ++i)
     {
         test[i] = gsl_ran_gaussian(gsl_gen, 5.36) - 68.28;
@@ -163,7 +163,6 @@ void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron
     neuron->membrane = generate_initial_potential(layer);
     neuron->synaptic_amp = generate_synaptic_amp(layer);
     delay = ceil(10 * generate_delay(layer));
-    assert(delay >= 0);
     neuron->delay = delay;
     neuron->spike = 0;
     neuron->refractory = 0;
@@ -245,10 +244,6 @@ void create_synapse_pairs(LIFNetwork *network)
 /**************************
         Update
 ***************************/
-/*
-    This is called after we get the spikes from the PREVIOUS step. So, first we need to obtain I (total_current).
-    Then we can update the membrane and based on that - refractory.
-*/
 void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalamic_spikes)
 {
     neuron->total_current *= P_11;
@@ -293,6 +288,7 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
 #pragma omp parallel shared(thalamic_spikes, current_timestep) num_threads(8) private(thread_id)
     {
         thread_id = omp_get_thread_num();
+        gsl_rng_set(gsl_gen, thread_id); // for the spike generation - they need to be random from pop to pop
         if (current_timestep != 0)
             thalamic_spikes[thread_id] = generate_thalamic_spikes(thread_id);
         else
@@ -345,11 +341,7 @@ void initialize_network(LIFNetwork *network)
     uint8_t pre_layer;
     uint32_t pre_neuron;
 
-    // generation has to be serial to achieve replicability - both neurons and synapses
-    srand(10);
-
     gsl_gen = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
-    // gsl_rng_set(gsl_gen, 123);
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)

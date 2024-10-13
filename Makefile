@@ -24,7 +24,7 @@ $(OBJ_DIR)/%.c.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run:
-	./$(TARGET) $(RUN_FLAGS)
+	./$(TARGET) $(RUN_FLAGS) >>log.txt 2>&1 & 
 
 visualize:
 	python3 visualize.py spikes.txt
