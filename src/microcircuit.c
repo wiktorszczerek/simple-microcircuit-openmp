@@ -5,46 +5,20 @@
 #include <math.h>
 #include <omp.h>
 #include <assert.h>
+#include <gsl/gsl_randist.h>
+
 /**************************
     Common functions
 ***************************/
-
 /*
-    Implementation of randn() published on: https://kcru.lawsonresearch.ca/research/srk/normalDBN_random.html.
-    All rights go to their respective owners.
+    GSL PRNG.
 */
-double randn(double mu, double sigma)
-{
-    double U1, U2, W, mult;
-    static double X1, X2;
-    static int call = 0;
-
-    if (call == 1)
-    {
-        call = !call;
-        return (mu + sigma * (double)X2);
-    }
-
-    do
-    {
-        U1 = -1 + ((double)rand() / RAND_MAX) * 2;
-        U2 = -1 + ((double)rand() / RAND_MAX) * 2;
-        W = pow(U1, 2) + pow(U2, 2);
-    } while (W >= 1 || W == 0);
-
-    mult = sqrt((-2 * log(W)) / W);
-    X1 = U1 * mult;
-    X2 = U2 * mult;
-
-    call = !call;
-
-    return (mu + sigma * (double)X1);
-}
+gsl_rng *gsl_gen;
 
 double generate_delay(MicrocircuitLayer layer)
 {
     double res;
-    while ((res = randn(delta_i[layer][0], delta_i[layer][1])) <= 0.0)
+    while ((res = gsl_ran_gaussian(gsl_gen, delta_i[layer][1]) + delta_i[layer][0]) <= 0.0)
     {
     };
     return res;
@@ -53,7 +27,7 @@ double generate_delay(MicrocircuitLayer layer)
 double generate_synaptic_amp(MicrocircuitLayer layer)
 {
     double res;
-    while ((res = randn(w_i[layer][0], w_i[layer][1])) == 0)
+    while ((res = gsl_ran_gaussian(gsl_gen, w_i[layer][1]) + w_i[layer][0]) == 0.0)
     {
     };
     return res;
@@ -62,7 +36,7 @@ double generate_synaptic_amp(MicrocircuitLayer layer)
 double generate_initial_potential(MicrocircuitLayer layer)
 {
     double res;
-    while ((res = randn(u_init[layer][0], u_init[layer][1])) >= 0.0)
+    while ((res = gsl_ran_gaussian(gsl_gen, u_init[layer][1]) + u_init[layer][0]) >= 0.0)
     {
     };
     return res;
@@ -70,32 +44,36 @@ double generate_initial_potential(MicrocircuitLayer layer)
 
 uint32_t get_pseudorandom_int(uint32_t start, uint32_t stop)
 {
-    return rand() % (stop + 1 - start) + start;
-}
-
-double generate_uniform_probability()
-{
-    return ((double)rand() / (double)RAND_MAX);
-}
-
-double generate_poisson_probability(double lambda, double k)
-{
-    return (pow(lambda, k) * exp(-lambda)) / tgamma(k + 1);
+    return (uint32_t)gsl_ran_flat(gsl_gen, (double)start, (double)stop);
 }
 
 uint32_t generate_thalamic_spikes(MicrocircuitLayer layer)
 {
-    uint32_t n = 0;
-    double limit = exp(-thalamic_sizes[layer] * 0.0008); // F_TH * TIMESTEP
-    double x;
+    return gsl_ran_poisson(gsl_gen, TIMESTEP * F_TH * thalamic_sizes[layer]);
+}
 
-    x = ((double)rand() / (double)RAND_MAX);
-    while (x > limit)
+void random_test()
+{
+    gsl_gen = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
+    // gsl_rng_set(gsl_gen, 123);
+    uint32_t test_size = 100000;
+    double test[test_size];
+    double avg = 0.0;
+    double variance = 0.0;
+    double std = 0.0;
+    for (uint32_t i = 0; i < test_size; ++i)
     {
-        n++;
-        x *= ((double)rand() / (double)RAND_MAX);
+        test[i] = gsl_ran_gaussian(gsl_gen, 5.36) - 68.28;
+        avg += test[i];
     }
-    return n;
+    avg /= test_size;
+    for (uint32_t i = 0; i < test_size; ++i)
+    {
+        variance += pow(test[i] - avg, 2);
+    }
+    variance /= test_size;
+    std = sqrt(variance);
+    printf("Randn test: mu = %f; sigma2 = %f; sigma = %f\n", avg, variance, std);
 }
 
 uint32_t max_synaptic_number_per_layer(MicrocircuitLayer layer)
@@ -139,19 +117,8 @@ uint32_t get_linux_random()
     return i;
 }
 
-uint32_t get_neuron_index(MicrocircuitLayer layer, uint32_t neuron_index)
-{
-    uint32_t ret = 0;
-    for (uint32_t i = 0; i < layer; ++i)
-    {
-        ret += pop_sizes[i];
-    }
-    ret += neuron_index;
-    return ret;
-}
-
 /**
- * Saving the absolute indexes [0...77169] of the spiked neuron in the current timestep
+ * Saving data
  */
 void save_spikes(LIFNetwork *network, uint32_t step)
 {
@@ -284,16 +251,18 @@ void create_synapse_pairs(LIFNetwork *network)
 */
 void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalamic_spikes)
 {
-    // compute decayed
+    neuron->total_current *= P_11;
     neuron->total_current += neuron->presynaptic_current * W_F; // sum = spike_ij * weight_ij [V] [F/s] * [V] = [A]
-    neuron->total_current *= P_11;                              // decay rate [1] - this only applies to the "old" spikes. Thalamics are from THIS step
+                                                                // update the total current with thalamics
+                                                                // decay rate [1] - this only applies to the "old" spikes. Thalamics are from THIS step
+    neuron->total_current += thalamic_spikes * W_EXT * W_F;     // thalamic_spikes * W_EXT * W_F; // [F/s] * [V] = [A]
 
     // update membrane
     if (neuron->refractory > 0)
         neuron->membrane = U_REST;
     else
         neuron->membrane = P_22 * neuron->membrane + P_21 * neuron->total_current;
-
+    // decay after update
     // assume spike = 0 and update refractory
     neuron->spike = 0;
     if (neuron->membrane >= U_THR)
@@ -310,9 +279,6 @@ void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalam
         neuron->refractory--;
     else
         neuron->refractory = 0;
-
-    // update the total current with thalamics -> this will be used in the NEXT STEP
-    neuron->total_current += thalamic_spikes * W_EXT * W_F; // thalamic_spikes * W_EXT * W_F; // [F/s] * [V] = [A]
 }
 
 void update_network(LIFNetwork *network, uint32_t current_timestep)
@@ -320,6 +286,7 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
     uint32_t neuron, pre_neuron;
     LIFNeuron *current_neuron, *pre_neuron_ptr;
     network->current_timestep = current_timestep;
+
 #ifdef MULTIPROCESSING
     uint32_t thalamic_spikes[8];
     uint32_t thread_id;
@@ -330,8 +297,21 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
             thalamic_spikes[thread_id] = generate_thalamic_spikes(thread_id);
         else
             thalamic_spikes[thread_id] = 0;
-    }
 #pragma omp barrier
+    }
+#pragma omp parallel for private(neuron) shared(network, thalamic_spikes)
+#endif
+    for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
+    {
+        if (network->neurons[neuron].spike_timestamp_flag)
+        {
+            network->neurons[neuron].spike_timestamps[0] = network->neurons[neuron].spike_timestamps[1];
+            network->neurons[neuron].spike_timestamp_flag = 0;
+        }
+        update_neuron(&(network->neurons[neuron]), network->current_timestep, thalamic_spikes[network->neurons[neuron].layer]);
+    }
+
+#ifdef MULTIPROCESSING
     if (current_timestep) // no need to run this on the first iteration. also FIFO behaviour
     {
 #pragma omp parallel for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron) shared(network)
@@ -350,19 +330,6 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
             }
         }
     }
-#ifdef MULTIPROCESSING
-#pragma omp barrier
-#pragma omp parallel for private(neuron) shared(network, thalamic_spikes)
-#endif
-    for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
-    {
-        if (network->neurons[neuron].spike_timestamp_flag)
-        {
-            network->neurons[neuron].spike_timestamps[0] = network->neurons[neuron].spike_timestamps[1];
-            network->neurons[neuron].spike_timestamp_flag = 0;
-        }
-        update_neuron(&(network->neurons[neuron]), network->current_timestep, thalamic_spikes[network->neurons[neuron].layer]);
-    }
 }
 
 /*
@@ -380,6 +347,9 @@ void initialize_network(LIFNetwork *network)
 
     // generation has to be serial to achieve replicability - both neurons and synapses
     srand(10);
+
+    gsl_gen = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
+    // gsl_rng_set(gsl_gen, 123);
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)

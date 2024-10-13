@@ -1,5 +1,6 @@
 from tabnanny import verbose
 from matplotlib import pyplot as plt
+import pandas as pd
 step_num = 0
 TIMESTEP = 0.0001
 step = []
@@ -18,20 +19,20 @@ with open("./spikes.txt", "r") as file:
             step = [int(i) for i in step]
 
 del step
-# print("Data loaded.")
-# print("Plotting the spike raster")
-# colors1 = [f'C{i}' for i in range(2)]
-# plt.eventplot(steps, colors='black', lineoffsets=1, linelengths=0.2, linewidths=0.5, orientation='vertical', antialiased=True, snap=False)
-# plt.axhline(y=20683, color='r', linestyle='--')
-# plt.axhline(y=26517, color='g', linestyle='--')
-# plt.axhline(y=48432, color='b', linestyle='--')
-# plt.axhline(y=53911, color='c', linestyle='--')
-# plt.axhline(y=58761, color='m', linestyle='--')
-# plt.axhline(y=59826, color='y', linestyle='--')
-# plt.axhline(y=74221, color='k', linestyle='--')
-# plt.ylim(bottom=0, top=77169)
-# plt.xlim(left=0, right=step_num)
-# plt.show()
+print("Data loaded.")
+print("Plotting the spike raster")
+colors1 = [f'C{i}' for i in range(2)]
+plt.eventplot(steps, colors='black', lineoffsets=1, linelengths=0.2, linewidths=0.5, orientation='vertical', antialiased=True, snap=False)
+plt.axhline(y=20683, color='r', linestyle='--')
+plt.axhline(y=26517, color='g', linestyle='--')
+plt.axhline(y=48432, color='b', linestyle='--')
+plt.axhline(y=53911, color='c', linestyle='--')
+plt.axhline(y=58761, color='m', linestyle='--')
+plt.axhline(y=59826, color='y', linestyle='--')
+plt.axhline(y=74221, color='k', linestyle='--')
+plt.ylim(bottom=0, top=77169)
+plt.xlim(left=0, right=step_num)
+plt.show()
 
 
 print("Extracting additional data")
@@ -63,9 +64,18 @@ for index,neuron in enumerate(neurons):
     else:
         freqs[7].append(len(neuron) / (TIMESTEP * step_num))
 
-print("Plotting additional data")
-binwidth = 10
-plt.plot(freqs[1], '.')
+# print("Plotting additional data")
+# binwidth = 10
+fig, ax = plt.subplots(4,2)
+pd.Series(freqs[0], copy=False).plot.kde(ax=ax[0,0],xlim=0)
+pd.Series(freqs[1], copy=False).plot.kde(ax=ax[0,1],xlim=0)
+pd.Series(freqs[2], copy=False).plot.kde(ax=ax[1,0],xlim=0)
+pd.Series(freqs[3], copy=False).plot.kde(ax=ax[1,1], xlim=0)
+pd.Series(freqs[4], copy=False).plot.kde(ax=ax[2,0], xlim=0)
+pd.Series(freqs[5], copy=False).plot.kde(ax=ax[2,1],xlim=0)
+pd.Series(freqs[6], copy=False).plot.kde(ax=ax[3,0],xlim=0)
+pd.Series(freqs[7], copy=False).plot.kde(ax=ax[3,1],xlim=0)
+plt.xlim(left=0)
 plt.show()
 # del steps
 # steps = list(map(list, zip_longest(*steps, fillvalue=None)))

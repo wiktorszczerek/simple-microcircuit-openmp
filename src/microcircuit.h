@@ -53,6 +53,8 @@ struct LIFNetwork
 
 uint32_t synaptic_number_check();
 
+void random_test();
+
 void initialize_network(LIFNetwork *network);
 void deinitialize_network(LIFNetwork *network);
 

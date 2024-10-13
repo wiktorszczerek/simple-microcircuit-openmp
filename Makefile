@@ -11,7 +11,7 @@ SRC_DIR = ./src
 SRCS := $(shell find $(SRC_DIR) -name '*.c')
 OBJS := $(SRCS:%=$(OBJ_DIR)/%.o)
 
-LIBS = -lm
+LIBS = -lm -lgsl
 
 RUN_FLAGS = -r 100
 
