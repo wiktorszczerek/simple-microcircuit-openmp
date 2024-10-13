@@ -60,10 +60,22 @@ void random_test()
     double avg = 0.0;
     double variance = 0.0;
     double std = 0.0;
-    uint32_t test_int = 0;
+
+    for (uint8_t j = 0; j < 8; ++j)
+    {
+        avg = 0.0;
+        for (uint32_t i = 0; i < test_size; ++i)
+        {
+            avg += (double)generate_thalamic_spikes(j);
+        }
+        printf("POISSON LAY%u: %lf\n", j, avg / test_size);
+        fflush(stdout);
+    }
+    avg = 0.0;
+
     for (uint32_t i = 0; i < test_size; ++i)
     {
-        test[i] = gsl_ran_gaussian(gsl_gen, 5.36) - 68.28;
+        test[i] = generate_synaptic_amp(1);
         avg += test[i];
     }
     avg /= test_size;
@@ -73,7 +85,8 @@ void random_test()
     }
     variance /= test_size;
     std = sqrt(variance);
-    printf("Randn test: mu = %f; sigma2 = %f; sigma = %f\n", avg, variance, std);
+    printf("Randn test: mu = %lf; sigma2 = %lf; sigma = %lf\n", avg, variance, std);
+    fflush(stdout);
 }
 
 uint32_t max_synaptic_number_per_layer(MicrocircuitLayer layer)
@@ -246,6 +259,7 @@ void create_synapse_pairs(LIFNetwork *network)
 ***************************/
 void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalamic_spikes)
 {
+
     neuron->total_current *= P_11;
     neuron->total_current += neuron->presynaptic_current * W_F; // sum = spike_ij * weight_ij [V] [F/s] * [V] = [A]
                                                                 // update the total current with thalamics
@@ -257,7 +271,7 @@ void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalam
         neuron->membrane = U_REST;
     else
         neuron->membrane = P_22 * neuron->membrane + P_21 * neuron->total_current;
-    // decay after update
+
     // assume spike = 0 and update refractory
     neuron->spike = 0;
     if (neuron->membrane >= U_THR)
@@ -272,8 +286,6 @@ void update_neuron(LIFNeuron *neuron, uint32_t current_timestep, uint32_t thalam
     }
     else if (neuron->refractory > 0)
         neuron->refractory--;
-    else
-        neuron->refractory = 0;
 }
 
 void update_network(LIFNetwork *network, uint32_t current_timestep)
@@ -285,16 +297,35 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
 #ifdef MULTIPROCESSING
     uint32_t thalamic_spikes[8];
     uint32_t thread_id;
+
+// thalamics here are from t-1
 #pragma omp parallel shared(thalamic_spikes, current_timestep) num_threads(8) private(thread_id)
     {
         thread_id = omp_get_thread_num();
-        gsl_rng_set(gsl_gen, thread_id); // for the spike generation - they need to be random from pop to pop
-        if (current_timestep != 0)
-            thalamic_spikes[thread_id] = generate_thalamic_spikes(thread_id);
-        else
-            thalamic_spikes[thread_id] = 0;
+        gsl_rng_set(gsl_gen, thread_id);
+        thalamic_spikes[thread_id] = generate_thalamic_spikes(thread_id);
 #pragma omp barrier
     }
+
+#ifdef MULTIPROCESSING
+// presynptics are from t - 1 as well
+#pragma omp parallel for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron) shared(network)
+#endif
+    for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
+    {
+        current_neuron = &(network->neurons[neuron]);
+        current_neuron->presynaptic_current = 0.0; // this needs to be zeroed!
+        for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
+        {
+            pre_neuron_ptr = current_neuron->presynaptic_neurons[pre_neuron];
+            if ((pre_neuron_ptr->spike_timestamps[0] - network->current_timestep) == 0 && pre_neuron_ptr->spike_timestamps[0]) // exactly this
+            {
+                current_neuron->presynaptic_current += pre_neuron_ptr->synaptic_amp;
+                pre_neuron_ptr->spike_timestamp_flag = 1; // doesn't need to be explicitly atomic
+            }
+        }
+    }
+
 #pragma omp parallel for private(neuron) shared(network, thalamic_spikes)
 #endif
     for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
@@ -305,26 +336,6 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
             network->neurons[neuron].spike_timestamp_flag = 0;
         }
         update_neuron(&(network->neurons[neuron]), network->current_timestep, thalamic_spikes[network->neurons[neuron].layer]);
-    }
-
-#ifdef MULTIPROCESSING
-    if (current_timestep) // no need to run this on the first iteration. also FIFO behaviour
-    {
-#pragma omp parallel for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron) shared(network)
-#endif
-        for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
-        {
-            current_neuron = &(network->neurons[neuron]);
-            for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
-            {
-                pre_neuron_ptr = current_neuron->presynaptic_neurons[pre_neuron];
-                if ((pre_neuron_ptr->spike_timestamps[0] - network->current_timestep) == 0) // exactly this
-                {
-                    current_neuron->presynaptic_current += pre_neuron_ptr->synaptic_amp;
-                    pre_neuron_ptr->spike_timestamp_flag = 1; // doesn't need to be explicitly atomic
-                }
-            }
-        }
     }
 }
 

@@ -9,7 +9,7 @@
 
 static const double TIMESTEP = 0.0001; // s
 
-static const double CAPACITANCE = 0.00000025; // pF
+static const double CAPACITANCE = 0.00000025; // F
 static const double TAU_M = 10;
 static const uint8_t TAU_REF = 2;
 static const double TAU_SYN = 0.5;
@@ -17,10 +17,10 @@ static const double U_REST = -65.0;
 static const double U_THR = -50.0;
 static const double F_TH = 8.0;
 static const double W_EXT = 0.15;
-static const double W_F = 585.0;    // synapse amp scale
+static const double W_F = 585.0;    // synapse amp scale  (0.00000058539[F/s], scaled not to use too big of a number)
 static const double P_11 = 0.82;    // presynaptic decay
 static const double P_22 = 0.99;    // membrane decay
-static const double P_21 = 0.00036; // injection scale
+static const double P_21 = 0.00036; // injection scale (361231 s/F - same idea as W_F)
 
 static const int NEURON_NUMBER = 77169;
 static const int LAYER_NUMBER = 8;

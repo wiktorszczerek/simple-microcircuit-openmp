@@ -56,6 +56,8 @@ int main(int argc, char **argv)
         exit(1);
     }
     {
+        // random_test();
+        // exit(10);
         uint32_t sim_steps = (uint32_t)strtol(argv[2], NULL, 10);
         initialize_network(&network);
         printf("Initialization done.\n\n");
