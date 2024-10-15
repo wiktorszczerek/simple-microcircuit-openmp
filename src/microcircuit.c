@@ -13,49 +13,84 @@
 /*
     GSL PRNG.
 */
+#ifdef MULTIPROCESSING
 gsl_rng *gsl_gen[16]; // num_threds max
+#else
+gsl_rng *gsl_gen;
+#endif
 
 double generate_delay(MicrocircuitLayer layer)
 {
     double res;
+#ifdef MULTIPROCESSING
     while ((res = gsl_ran_gaussian(gsl_gen[0], delta_i[layer][1]) + delta_i[layer][0]) <= 0.0)
     {
     };
+#else
+    while ((res = gsl_ran_gaussian(gsl_gen, delta_i[layer][1]) + delta_i[layer][0]) <= 0.0)
+    {
+    };
+#endif
     return res;
 }
 
 double generate_synaptic_amp(MicrocircuitLayer layer)
 {
     double res;
+#ifdef MULTIPROCESSING
     while ((res = gsl_ran_gaussian(gsl_gen[0], w_i[layer][1]) + w_i[layer][0]) == 0.0)
     {
     };
+#else
+    while ((res = gsl_ran_gaussian(gsl_gen, w_i[layer][1]) + w_i[layer][0]) == 0.0)
+    {
+    };
+#endif
     return res;
 }
 
 double generate_initial_potential(MicrocircuitLayer layer)
 {
     double res;
+#ifdef MULTIPROCESSING
     while ((res = gsl_ran_gaussian(gsl_gen[0], u_init[layer][1]) + u_init[layer][0]) >= 0.0)
     {
     };
+#else
+    while ((res = gsl_ran_gaussian(gsl_gen, u_init[layer][1]) + u_init[layer][0]) >= 0.0)
+    {
+    };
+#endif
     return res;
 }
 
 uint32_t get_pseudorandom_int(uint32_t start, uint32_t stop)
 {
+#ifdef MULTIPROCESSING
     return (uint32_t)gsl_ran_flat(gsl_gen[0], (double)start, (double)stop);
+#else
+    return (uint32_t)gsl_ran_flat(gsl_gen, (double)start, (double)stop);
+#endif
 }
 
 uint32_t generate_thalamic_spikes(uint8_t thread_id, MicrocircuitLayer layer)
 {
+#ifdef MULTIPROCESSING
     return gsl_ran_poisson(gsl_gen[thread_id], TIMESTEP * F_TH * thalamic_sizes[layer]);
+#else
+    return gsl_ran_poisson(gsl_gen, TIMESTEP * F_TH * thalamic_sizes[layer]);
+#endif
 }
 
 void random_test()
 {
+#ifdef MULTIPROCESSING
     gsl_gen[0] = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
     gsl_rng_set(gsl_gen[0], 0);
+#else
+    gsl_gen = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
+    gsl_rng_set(gsl_gen, 0);
+#endif
     uint32_t test_size = 100000;
     double test[test_size];
     double avg = 0.0;
@@ -354,16 +389,17 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
     LIFNeuron *current_neuron, *pre_neuron_ptr;
     network->current_timestep = current_timestep;
 
-    // presynptics are from t - 1 as well
-    uint32_t thread_id;
-    uint32_t spike_timing;
+    uint32_t thread_id = 0;
 
+#ifdef MULTIPROCESSING
 #pragma omp parallel shared(network) private(thread_id)
     {
         thread_id = omp_get_thread_num();
         gsl_rng_set(gsl_gen[thread_id], thread_id + 123);
 #pragma omp barrier
-#pragma omp for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron, spike_timing)
+#pragma omp for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron)
+
+#endif
         for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
         {
             current_neuron = &(network->neurons[neuron]);
@@ -373,16 +409,20 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
             for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
             {
                 pre_neuron_ptr = current_neuron->presynaptic_neurons[pre_neuron];
-                spike_timing = pre_neuron_ptr->spike_timestamps.spikes[0];
-                if (network->current_timestep == spike_timing)
+                if (network->current_timestep == pre_neuron_ptr->spike_timestamps.spikes[0])
                 {
                     current_neuron->presynaptic_current += pre_neuron_ptr->synaptic_amp;
                 }
             }
         }
-    }
 
+#ifdef MULTIPROCESSING
+    }
+#endif
+
+#ifdef MULTIPROCESSING
 #pragma omp parallel for private(neuron) shared(network)
+#endif
     for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
         if (network->neurons[neuron].spike_timestamps.spikes[0] == current_timestep)
@@ -406,11 +446,16 @@ void initialize_network(LIFNetwork *network)
     uint8_t pre_layer;
     uint32_t pre_neuron;
 
+#ifdef MULTIPROCESSING
     for (uint8_t i = 0; i < 16; ++i)
     {
         gsl_gen[i] = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
     }
     gsl_rng_set(gsl_gen[0], 321); // setting to a known seed for the serial stuff in the beginning
+#else
+    gsl_gen = gsl_rng_alloc(gsl_rng_mt19937);
+    gsl_rng_set(gsl_gen, 321);
+#endif
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)

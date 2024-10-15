@@ -4,7 +4,6 @@
     general parameters
 */
 
-#define DEBUG
 #define MULTIPROCESSING
 
 static const double TIMESTEP = 0.0001; // s

@@ -56,24 +56,21 @@ int main(int argc, char **argv)
         exit(1);
     }
     {
-        // synaptic_number_check();
-        // exit(11);
-        // random_test();
-        // exit(10);
         uint32_t sim_steps = (uint32_t)strtol(argv[2], NULL, 10);
         initialize_network(&network);
         printf("Initialization done.\n\n");
         fflush(stdout);
-        dtime = gettime();
         for (int i = 0; i < sim_steps; ++i)
         {
             printf("Simulating step %d of %d...\r", i + 1, sim_steps);
             fflush(stdout);
+            dtime = gettime();
             update_network(&network, i);
+            dtime = gettime() - dtime;
             save_spikes(&network, i);
         }
-        dtime = gettime() - dtime;
-        printf("Elapsed time: %9.5f seconds\n", dtime);
+        // dtime = gettime() - dtime;
+        printf("\nElapsed time: %9.5f seconds\n", dtime);
         save_spiking_rates(&network);
         deinitialize_network(&network);
     }

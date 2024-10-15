@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -fopenmp -O1 -g
+CFLAGS = -Wall -fopenmp -O0 -g
 
 TARGET = app
 OUTPUT_FILE = spikes.txt
@@ -13,7 +13,8 @@ OBJS := $(SRCS:%=$(OBJ_DIR)/%.o)
 
 LIBS = -lm -lgsl
 
-RUN_FLAGS = -r 1000
+RUN_FLAGS = -r 100
+TEST_FLAGS = -r 1
 
 
 $(TARGET): clean $(OBJS)
@@ -22,6 +23,9 @@ $(TARGET): clean $(OBJS)
 $(OBJ_DIR)/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+single_step_test:
+	./$(TARGET) $(TEST_FLAGS)
 
 run:
 	./$(TARGET) $(RUN_FLAGS) >>log.txt 2>&1 & 
