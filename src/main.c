@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     }
 
     LIFNetwork network;
-    double dtime;
+    double dtime, alltime = 0.0;
 
     if (err == 1)
     {
@@ -67,10 +67,12 @@ int main(int argc, char **argv)
             dtime = gettime();
             update_network(&network, i);
             dtime = gettime() - dtime;
+            alltime += dtime;
             save_spikes(&network, i);
         }
+        alltime /= sim_steps;
         // dtime = gettime() - dtime;
-        printf("\nElapsed time: %9.5f seconds\n", dtime);
+        printf("\nTime of the most recent loop:\t%9.5f seconds\nAverage after %d steps:\t%9.5f seconds\n", dtime, sim_steps, alltime);
         save_spiking_rates(&network);
         deinitialize_network(&network);
     }

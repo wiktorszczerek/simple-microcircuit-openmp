@@ -397,7 +397,7 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
         thread_id = omp_get_thread_num();
         gsl_rng_set(gsl_gen[thread_id], thread_id + 123);
 #pragma omp barrier
-#pragma omp for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron)
+#pragma omp for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron) schedule(runtime)
 
 #endif
         for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
@@ -421,7 +421,7 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
 #endif
 
 #ifdef MULTIPROCESSING
-#pragma omp parallel for private(neuron) shared(network)
+#pragma omp parallel for private(neuron) shared(network) schedule(runtime)
 #endif
     for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
