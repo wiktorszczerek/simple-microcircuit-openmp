@@ -6,6 +6,7 @@
 typedef struct LIFNeuron LIFNeuron;
 typedef struct LIFConnection LIFConnection;
 typedef struct LIFNetwork LIFNetwork;
+typedef struct LIFFifo LIFFifo;
 
 typedef enum
 {
@@ -19,6 +20,12 @@ typedef enum
     MLAYER_L6INH
 } MicrocircuitLayer;
 
+typedef struct LIFFifo
+{
+    uint32_t spikes[2];
+    uint8_t num_elements;
+} LIFFifo;
+
 struct LIFNeuron
 {
     uint8_t layer;
@@ -28,8 +35,7 @@ struct LIFNeuron
     uint8_t refractory;
     uint8_t spike;
     uint32_t spike_number;
-    uint32_t spike_timestamps[2];
-    uint8_t spike_timestamp_flag;
+    LIFFifo spike_timestamps;
     uint32_t synapse_count;
     double presynaptic_current;
     double thalamic_spikes;

@@ -56,6 +56,8 @@ int main(int argc, char **argv)
         exit(1);
     }
     {
+        // synaptic_number_check();
+        // exit(11);
         // random_test();
         // exit(10);
         uint32_t sim_steps = (uint32_t)strtol(argv[2], NULL, 10);

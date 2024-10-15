@@ -10,8 +10,8 @@ print("Loading spikes from spikes.txt...")
 with open("./spikes.txt", "r") as file:
     for line in file:
         if 'step' in line:
-            if step:
-                steps.append(step)
+            # if step:
+            steps.append(step)
             step_num = step_num + 1
         else:
             step = [s.strip('\n') for s in line.split(',')]
@@ -21,10 +21,22 @@ with open("./spikes.txt", "r") as file:
 step_num_half = step_num / 2
 
 del step
+
+
+
+print("Extracting additional data")
+neurons = [[] for _ in range(77169)]
+
+for s_index, s_value  in enumerate(steps):
+    for neuron in s_value:
+        neurons[neuron].append(s_index)
+
+del(steps)
+
 print("Data loaded.")
 print("Plotting the spike raster")
 colors1 = [f'C{i}' for i in range(2)]
-plt.eventplot(steps, colors='black', lineoffsets=1, linelengths=0.2, linewidths=0.5, orientation='vertical', antialiased=True, snap=False)
+plt.eventplot(neurons, colors='black', lineoffsets=1, linelengths=0.75, linewidths=0.5, orientation='horizontal', antialiased=False, snap=False)
 plt.axhline(y=20683, color='r', linestyle='--')
 plt.axhline(y=26517, color='g', linestyle='--')
 plt.axhline(y=48432, color='b', linestyle='--')
@@ -37,14 +49,6 @@ plt.xlim(left=0, right=step_num)
 plt.show()
 
 
-print("Extracting additional data")
-neurons = [[] for _ in range(77169)]
-
-for s_index, s_value  in enumerate(steps):
-    for neuron in s_value:
-        neurons[neuron].append(s_index)
-
-del(steps)
 
 freqs = [[], [], [], [], [], [], [], []]
 print(len(freqs))
@@ -66,8 +70,6 @@ for index,neuron in enumerate(neurons):
     else:
         freqs[7].append(len(neuron)/(TIMESTEP * step_num))
 
-# print("Plotting additional data")
-# binwidth = 10
 fig, ax = plt.subplots(4,2)
 ax[0,0].plot(freqs[0], '.')
 ax[0,1].plot(freqs[1], '.')
@@ -79,19 +81,17 @@ ax[3,0].plot(freqs[6], '.')
 ax[3,1].plot(freqs[7], '.')
 plt.show()
 
-fig, ax = plt.subplots(4,2)
-pd.Series(freqs[0], copy=False).plot.kde(ax=ax[0,0],xlim=0)
-pd.Series(freqs[1], copy=False).plot.kde(ax=ax[0,1],xlim=0)
-pd.Series(freqs[2], copy=False).plot.kde(ax=ax[1,0],xlim=0)
-pd.Series(freqs[3], copy=False).plot.kde(ax=ax[1,1],xlim=0)
-pd.Series(freqs[4], copy=False).plot.kde(ax=ax[2,0],xlim=0)
-pd.Series(freqs[5], copy=False).plot.kde(ax=ax[2,1],xlim=0)
-pd.Series(freqs[6], copy=False).plot.kde(ax=ax[3,0],xlim=0)
-pd.Series(freqs[7], copy=False).plot.kde(ax=ax[3,1],xlim=0)
-plt.xlim(left=0)
-plt.show()
-# del steps
-# steps = list(map(list, zip_longest(*steps, fillvalue=None)))
+# fig, ax = plt.subplots(4,2)
+# pd.Series(freqs[0], copy=False).plot.kde(ax=ax[0,0],xlim=0)
+# pd.Series(freqs[1], copy=False).plot.kde(ax=ax[0,1],xlim=0)
+# pd.Series(freqs[2], copy=False).plot.kde(ax=ax[1,0],xlim=0)
+# pd.Series(freqs[3], copy=False).plot.kde(ax=ax[1,1],xlim=0)
+# pd.Series(freqs[4], copy=False).plot.kde(ax=ax[2,0],xlim=0)
+# pd.Series(freqs[5], copy=False).plot.kde(ax=ax[2,1],xlim=0)
+# pd.Series(freqs[6], copy=False).plot.kde(ax=ax[3,0],xlim=0)
+# pd.Series(freqs[7], copy=False).plot.kde(ax=ax[3,1],xlim=0)
+# plt.xlim(left=0)
+# plt.show()
 
 
 

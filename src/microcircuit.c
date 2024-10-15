@@ -5,6 +5,7 @@
 #include <math.h>
 #include <omp.h>
 #include <gsl/gsl_randist.h>
+#include <assert.h>
 
 /**************************
     Common functions
@@ -61,6 +62,24 @@ void random_test()
     double variance = 0.0;
     double std = 0.0;
 
+    for (uint32_t i = 0; i < test_size; ++i)
+    {
+        test[i] = get_pseudorandom_int(0, pop_sizes[0]);
+        avg += test[i];
+    }
+    avg /= test_size;
+    for (uint32_t i = 0; i < test_size; ++i)
+    {
+        variance += pow(test[i] - avg, 2);
+    }
+    variance /= test_size;
+    std = sqrt(variance);
+    printf("FLAT AVG: %lf STD: %lf\n", avg, std);
+    fflush(stdout);
+
+    variance = 0.0;
+    std = 0.0;
+
     for (uint8_t j = 0; j < 8; ++j)
     {
         avg = 0.0;
@@ -72,6 +91,8 @@ void random_test()
         fflush(stdout);
     }
     avg = 0.0;
+    variance = 0.0;
+    std = 0.0;
 
     for (uint32_t i = 0; i < test_size; ++i)
     {
@@ -94,7 +115,7 @@ uint32_t max_synaptic_number_per_layer(MicrocircuitLayer layer)
     uint32_t num = 0;
     for (uint32_t i = 0; i < LAYER_NUMBER; ++i)
     {
-        num += max_synapses_per_layer[layer][i];
+        num += max_synapses_per_layer[i][layer];
     }
     return num;
 }
@@ -164,6 +185,40 @@ void save_spiking_rates(LIFNetwork *network)
     fclose(f);
 }
 
+void liffifo_init(LIFFifo *fifo)
+{
+    fifo->num_elements = 0;
+    fifo->spikes[0] = UINT32_MAX;
+    fifo->spikes[1] = UINT32_MAX;
+}
+
+void liffifo_push(LIFFifo *fifo, uint32_t val)
+{
+    fifo->spikes[fifo->num_elements] = val;
+    fifo->num_elements++;
+}
+
+uint32_t liffifo_pop(LIFFifo *fifo)
+{
+    uint32_t holder;
+    holder = fifo->spikes[0];
+    if (fifo->num_elements)
+    {
+        switch (fifo->num_elements)
+        {
+        case 2: // shift, zero 1
+            fifo->spikes[0] = fifo->spikes[1];
+            fifo->spikes[1] = UINT32_MAX;
+            break;
+        case 1: // no shift, zero 0
+            fifo->spikes[0] = UINT32_MAX;
+            break;
+        }
+        fifo->num_elements--;
+    }
+    return holder;
+}
+
 /**************************
         Neuron
 ***************************/
@@ -180,11 +235,9 @@ void create_neuron(LIFNetwork *network, MicrocircuitLayer layer, uint32_t neuron
     neuron->spike = 0;
     neuron->refractory = 0;
     neuron->synapse_count = 0;
-    neuron->spike_timestamps[0] = 0;
-    neuron->spike_timestamps[1] = 0;
+    liffifo_init(&(neuron->spike_timestamps));
     neuron->total_current = 0.0;
     neuron->presynaptic_current = 0.0;
-    neuron->spike_timestamp_flag = 0;
     neuron->spike_number = 0;
     neuron->thalamic_spikes = 0.0;
 }
@@ -213,15 +266,15 @@ void create_synapse_pairs(LIFNetwork *network)
         for (uint8_t post_layer = 0; post_layer < LAYER_NUMBER; ++post_layer)
         {
             printf("Generating synapses for pop_%d -> pop_%d...", pre_layer, post_layer);
-            if (!max_synapses_per_layer[pre_layer][post_layer])
+            if (!max_synapses_per_layer[post_layer][pre_layer])
             {
                 printf("FAILED, no synapses between those populations. Skipping.\n");
                 continue;
             }
-            for (uint32_t sample = 0; sample < max_synapses_per_layer[pre_layer][post_layer]; ++sample)
+            for (uint32_t sample = 0; sample < max_synapses_per_layer[post_layer][pre_layer]; ++sample)
             {
-                synapses[synapse_index].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer] - 1);
-                synapses[synapse_index].post_index = get_pseudorandom_int(0, pop_sizes[post_layer] - 1);
+                synapses[synapse_index].pre_index = get_pseudorandom_int(0, pop_sizes[pre_layer]);
+                synapses[synapse_index].post_index = get_pseudorandom_int(0, pop_sizes[post_layer]);
                 synapses[synapse_index].pre_layer = pre_layer;
                 synapses[synapse_index].post_layer = post_layer;
                 network->neurons[pop_starts[post_layer] + synapses[synapse_index].post_index].synapse_count++;
@@ -258,31 +311,35 @@ void create_synapse_pairs(LIFNetwork *network)
 /**************************
         Update
 ***************************/
+
 void update_neuron(LIFNeuron *neuron, uint32_t current_timestep)
 {
 
-    neuron->total_current *= P_11;                                                                  // decay the current from previous iteration
-    neuron->total_current += (neuron->presynaptic_current + neuron->thalamic_spikes * W_EXT) * W_F; // sum = spike_ij * weight_ij [V] [F/s] * [V] = [A]
-                                                                                                    // update the total current with thalamics
-                                                                                                    // decay rate [1] - this only applies to the "old" spikes. Thalamics are from THIS step
-                                                                                                    // thalamic_spikes * W_EXT * W_F; // [F/s] * [V] = [A]
-
     // update membrane
-    if (neuron->refractory > 0)
+    if (neuron->refractory == TAU_REF)
+    {
+        liffifo_push(&(neuron->spike_timestamps), current_timestep + neuron->delay);
         neuron->membrane = U_REST;
+        neuron->spike = 1;
+        neuron->spike_number++;
+    }
+    else if (neuron->refractory > 0)
+    {
+        neuron->spike = 0;
+    }
     else
         neuron->membrane = P_22 * neuron->membrane + P_21 * neuron->total_current; // P_21 [s/F]
 
-    // assume spike = 0 and update refractory
-    neuron->spike = 0;
+    neuron->total_current *= P_11;                                  // decay the current from previous iteration
+    neuron->total_current += neuron->thalamic_spikes * W_EXT * W_F; // add thalamic (input)
+
+    neuron->total_current += neuron->presynaptic_current * W_F;
+    // sum = spike_ij * weight_ij [V] [F/s] * [V] = [A]
+    // update the total current with thalamics
+    // decay rate [1] - this only applies to the "old" spikes. Thalamics are from THIS step
+    // thalamic_spikes * W_EXT * W_F; // [F/s] * [V] = [A]
     if (neuron->membrane >= U_THR)
     {
-        if (!current_timestep)
-            neuron->spike_timestamps[0] = current_timestep + neuron->delay;
-        else
-            neuron->spike_timestamps[1] = current_timestep + neuron->delay;
-        neuron->spike = 1;
-        neuron->spike_number++;
         neuron->refractory = TAU_REF;
     }
     else if (neuron->refractory > 0)
@@ -299,12 +356,14 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
 
     // presynptics are from t - 1 as well
     uint32_t thread_id;
+    uint32_t spike_timing;
+
 #pragma omp parallel shared(network) private(thread_id)
     {
-#pragma omp barrier
         thread_id = omp_get_thread_num();
-        gsl_rng_set(gsl_gen[thread_id], thread_id);
-#pragma omp for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron)
+        gsl_rng_set(gsl_gen[thread_id], thread_id + 123);
+#pragma omp barrier
+#pragma omp for private(pre_neuron, neuron, pre_neuron_ptr, current_neuron, spike_timing)
         for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
         {
             current_neuron = &(network->neurons[neuron]);
@@ -314,23 +373,21 @@ void update_network(LIFNetwork *network, uint32_t current_timestep)
             for (pre_neuron = 0; pre_neuron < network->neurons[neuron].synapse_count; ++pre_neuron)
             {
                 pre_neuron_ptr = current_neuron->presynaptic_neurons[pre_neuron];
-                if ((pre_neuron_ptr->spike_timestamps[0] - network->current_timestep) == 0 && pre_neuron_ptr->spike_timestamps[0]) // exactly this
+                spike_timing = pre_neuron_ptr->spike_timestamps.spikes[0];
+                if (network->current_timestep == spike_timing)
                 {
                     current_neuron->presynaptic_current += pre_neuron_ptr->synaptic_amp;
-                    pre_neuron_ptr->spike_timestamp_flag = 1; // doesn't need to be explicitly atomic
                 }
             }
         }
-#pragma omp barrier
     }
 
 #pragma omp parallel for private(neuron) shared(network)
     for (neuron = 0; neuron < NEURON_NUMBER; ++neuron)
     {
-        if (network->neurons[neuron].spike_timestamp_flag)
+        if (network->neurons[neuron].spike_timestamps.spikes[0] == current_timestep)
         {
-            network->neurons[neuron].spike_timestamps[0] = network->neurons[neuron].spike_timestamps[1];
-            network->neurons[neuron].spike_timestamp_flag = 0;
+            liffifo_pop(&(network->neurons[neuron].spike_timestamps));
         }
         update_neuron(&(network->neurons[neuron]), network->current_timestep);
     }
@@ -353,7 +410,7 @@ void initialize_network(LIFNetwork *network)
     {
         gsl_gen[i] = gsl_rng_alloc(gsl_rng_mt19937); // allocating and init MT PRNG (seed 0)
     }
-    gsl_rng_set(gsl_gen[0], 123456); // setting to a known seed for the serial stuff in the beginning
+    gsl_rng_set(gsl_gen[0], 321); // setting to a known seed for the serial stuff in the beginning
     for (pre_layer = 0; pre_layer < LAYER_NUMBER; ++pre_layer)
     {
         for (pre_neuron = 0; pre_neuron < pop_sizes[pre_layer]; ++pre_neuron)
